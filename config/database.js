@@ -3,14 +3,15 @@ const { Sequelize } = require('sequelize');
 
 // Database configuration
 // Load from environment variables or use defaults
+// Support both Railway's PostgreSQL variables (PGHOST, PGPORT, etc.) and custom variables
 // Ensure password is always a string
-const dbPassword = process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || '';
+const dbPassword = process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || '';
 const dbConfig = {
-    database: process.env.DB_NAME || 'bus_booking_db',
-    username: process.env.DB_USER || 'postgres',
+    database: process.env.DB_NAME || process.env.PGDATABASE || 'bus_booking_db',
+    username: process.env.DB_USER || process.env.PGUSER || 'postgres',
     password: String(dbPassword), // Ensure password is always a string
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 5432,
+    host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || process.env.PGPORT) || 5432,
     dialect: 'postgres',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {

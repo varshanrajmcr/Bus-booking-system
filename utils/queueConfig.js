@@ -2,13 +2,25 @@ const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 
 // Redis connection configuration
-const redisConnection = new IORedis({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD || undefined,
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false
-});
+// Support both REDIS_URL (Railway) and individual variables
+let redisConnection;
+
+if (process.env.REDIS_URL) {
+    // Railway provides REDIS_URL as a connection string
+    redisConnection = new IORedis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+    });
+} else {
+    // Fallback to individual variables
+    redisConnection = new IORedis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+    });
+}
 
 // Queue names
 const QUEUE_NAMES = {

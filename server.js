@@ -44,13 +44,14 @@ try {
 }
 
 // Create PostgreSQL connection pool for session store
-const dbPassword = process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || '';
+// Support both Railway's PostgreSQL variables (PGHOST, PGPORT, etc.) and custom variables
+const dbPassword = process.env.DB_PASSWORD || process.env.POSTGRES_PASSWORD || process.env.PGPASSWORD || '';
 const sessionPool = new Pool({
-    user: process.env.DB_USER || 'postgres',
+    user: process.env.DB_USER || process.env.PGUSER || 'postgres',
     password: String(dbPassword),
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME || 'bus_booking_db',
+    host: process.env.DB_HOST || process.env.PGHOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || process.env.PGPORT) || 5432,
+    database: process.env.DB_NAME || process.env.PGDATABASE || 'bus_booking_db',
     max: 5,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
