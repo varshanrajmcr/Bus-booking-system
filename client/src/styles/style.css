@@ -1,0 +1,743 @@
+/* FlixBus Theme - Main Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+#root {
+    width: 100%;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    background: #ffffff;
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    color: #333333;
+}
+
+/* No scrolling for signup pages */
+body.signup-page {
+    overflow-y: hidden;
+    height: 100vh;
+    align-items: center;
+    background: linear-gradient(135deg, #ffffff 0%, #ffffff 100%);
+}
+
+/* Admin signup page - allow scrolling */
+body.admin-signup-page {
+    overflow-y: auto;
+    min-height: 100vh;
+    height: auto;
+    align-items: flex-start;
+    padding: 20px 0;
+}
+
+/* Two Column Layout for Login/Signup Pages */
+.page-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 1400px;
+    gap: 80px;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: calc(100vh - 40px);
+    padding: 40px 60px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Optimize for signup pages to fit without scrolling */
+body.signup-page .page-wrapper {
+    min-height: auto;
+    height: auto;
+    padding: 20px 40px;
+    gap: 60px;
+}
+
+.logo-section {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 650px;
+    margin-right: auto;
+}
+
+.logo-section .page-logo {
+    width: 200px;
+    height: 200px;
+    margin-bottom: 30px;
+    animation: logoPulse 3s ease-in-out infinite;
+    filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.2));
+}
+
+/* Reduce logo size for signup pages */
+body.signup-page .logo-section .page-logo {
+    width: 150px;
+    height: 150px;
+    margin-bottom: 20px;
+}
+
+.logo-section h2 {
+    color: #517302;
+    font-size: 2.5rem;
+    margin-bottom: 20px;
+    font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Reduce heading size for signup */
+body.signup-page .logo-section h2 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
+
+.trust-quote {
+    color: #97d700;
+    font-size: 1.2rem;
+    font-style: italic;
+    line-height: 1.8;
+    margin-top: 20px;
+    padding: 20px;
+    border-left: 4px solid #ffffff;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+/* Reduce quote size for signup */
+body.signup-page .trust-quote {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-top: 15px;
+    padding: 15px;
+}
+
+.trust-quote::before {
+    content: '"';
+    font-size: 3rem;
+    color: #97d700;
+    line-height: 0;
+    margin-right: 10px;
+    opacity: 0.7;
+}
+
+.trust-quote::after {
+    content: '"';
+    font-size: 3rem;
+    color: #97d700;
+    line-height: 0;
+    margin-left: 10px;
+    opacity: 0.7;
+}
+
+.quote-author {
+    color: #97d700;
+    font-size: 1rem;
+    font-style: normal;
+    margin-top: 15px;
+    text-align: right;
+    font-weight: 600;
+}
+
+.vertical-divider {
+    width: 2px;
+    height: 80%;
+    min-height: 400px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin: 0 20px;
+    position: relative;
+}
+
+.form-section {
+    flex: 0 0 auto;
+    max-width: 450px;
+    width: 100%;
+    margin-left: auto;
+}
+
+/* Animated Background Bubbles */
+.background-animation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Animated Cartoon Bus - FlixBus Style */
+.animated-bus {
+    position: fixed;
+    width: 140px;
+    height: 90px;
+    z-index: 0;
+    pointer-events: none;
+    animation: busDrive 25s infinite linear;
+}
+
+.bus-body {
+    width: 120px;
+    height: 60px;
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    border-radius: 10px 10px 0 0;
+    position: relative;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.bus-windows {
+    display: flex;
+    gap: 10px;
+    padding: 10px 15px;
+    position: relative;
+    z-index: 1;
+}
+
+.bus-window {
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid #97d700;
+    border-radius: 4px;
+    position: relative;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.bus-window::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.bus-wheels {
+    display: flex;
+    gap: 50px;
+    position: absolute;
+    bottom: -18px;
+    left: 18px;
+    z-index: 2;
+}
+
+.bus-wheel {
+    width: 28px;
+    height: 28px;
+    background: #333333;
+    border-radius: 50%;
+    border: 3px solid #97d700;
+    position: relative;
+    animation: wheelRotate 0.4s infinite linear;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.bus-wheel::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background: #97d700;
+    border-radius: 50%;
+}
+
+.bus-front {
+    width: 25px;
+    height: 60px;
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    border-radius: 0 10px 10px 0;
+    position: absolute;
+    right: -18px;
+    top: -2px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-left: none;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+    z-index: 0;
+}
+
+.bus-headlight {
+    width: 10px;
+    height: 10px;
+    background: #FFD700;
+    border-radius: 50%;
+    position: absolute;
+    top: 12px;
+    right: 6px;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.9);
+    animation: headlightBlink 2s infinite;
+}
+
+.bus-door {
+    position: absolute;
+    left: 45px;
+    bottom: 0;
+    width: 25px;
+    height: 35px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 2px solid #97d700;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
+@keyframes busDrive {
+    0% {
+        left: -160px;
+        top: 15%;
+        transform: scaleX(1) rotate(0deg);
+    }
+    20% {
+        left: 30%;
+        top: 15%;
+        transform: scaleX(1) rotate(0deg);
+    }
+    20.1% {
+        transform: scaleX(-1) rotate(0deg);
+    }
+    40% {
+        left: calc(100% + 60px);
+        top: 15%;
+        transform: scaleX(-1) rotate(0deg);
+    }
+    40.1% {
+        top: 65%;
+        transform: scaleX(-1) rotate(0deg);
+    }
+    60% {
+        left: 30%;
+        top: 65%;
+        transform: scaleX(-1) rotate(0deg);
+    }
+    60.1% {
+        transform: scaleX(1) rotate(0deg);
+    }
+    80% {
+        left: -160px;
+        top: 65%;
+        transform: scaleX(1) rotate(0deg);
+    }
+    80.1% {
+        top: 15%;
+    }
+    100% {
+        left: -160px;
+        top: 15%;
+        transform: scaleX(1) rotate(0deg);
+    }
+}
+
+@keyframes wheelRotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes headlightBlink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.floating-shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(0, 208, 255, 0.1);
+    animation: float 20s infinite ease-in-out;
+    box-shadow: 0 0 30px rgba(0, 208, 255, 0.2);
+}
+
+.shape-1 {
+    width: 300px;
+    height: 300px;
+    top: -100px;
+    left: -100px;
+    animation-delay: 0s;
+}
+
+.shape-2 {
+    width: 200px;
+    height: 200px;
+    bottom: -50px;
+    right: -50px;
+    animation-delay: 5s;
+}
+
+.shape-3 {
+    width: 150px;
+    height: 150px;
+    top: 50%;
+    right: 10%;
+    animation-delay: 10s;
+}
+
+.shape-4 {
+    width: 120px;
+    height: 120px;
+    top: 20%;
+    left: 10%;
+    animation-delay: 7s;
+}
+
+.shape-5 {
+    width: 180px;
+    height: 180px;
+    bottom: 20%;
+    left: 20%;
+    animation-delay: 12s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+    33% {
+        transform: translate(30px, -30px) rotate(120deg);
+    }
+    66% {
+        transform: translate(-20px, 20px) rotate(240deg);
+    }
+}
+
+.container {
+    background: #ffffff;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    padding: 40px;
+    width: 100%;
+    max-width: 450px;
+    animation: fadeIn 0.5s ease-in;
+    position: relative;
+    z-index: 1;
+    margin: 0;
+}
+
+/* Reduce padding for signup forms to fit on screen */
+body.signup-page .container {
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+/* For standalone containers (not in form-section) */
+body > .container {
+    margin: 20px auto;
+}
+
+/* Logo Styling */
+.page-logo {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    display: block;
+    border-radius: 50%;
+    object-fit: cover;
+    filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.1));
+    animation: logoPulse 3s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.page-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+h1 {
+    color: #97d700;
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* Reduce h1 margin for signup */
+body.signup-page h1 {
+    margin-bottom: 8px;
+    font-size: 24px;
+    color: #97d700;
+}
+
+.page-title h1 {
+    margin-bottom: 5px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666666;
+    margin-bottom: 30px;
+    font-size: 14px;
+}
+
+/* Reduce subtitle margin for signup */
+body.signup-page .subtitle {
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+/* Reduce spacing for signup forms */
+body.signup-page .form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333333;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="date"],
+input[type="number"] {
+    width: 100%;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    color: #333333;
+    transition: all 0.3s ease;
+    outline: none;
+    font-family: inherit;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+input[type="date"]:focus,
+input[type="number"]:focus {
+    border-color: #97d700;
+    box-shadow: 0 0 0 3px rgba(151, 215, 0, 0.1);
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="tel"]::placeholder {
+    color: #999999;
+}
+
+.btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+    box-shadow: 0 4px 12px rgba(151, 215, 0, 0.3);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(151, 215, 0, 0.4);
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.link-text {
+    text-align: center;
+    margin-top: 20px;
+    color: #666666;
+    font-size: 14px;
+}
+
+.link-text a {
+    color: #97d700;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.link-text a:hover {
+    color: #97d700;
+    text-decoration: underline;
+}
+
+.error-message {
+    background-color: #fff5f5;
+    color: #e53e3e;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: block;
+    border: 1px solid #feb2b2;
+}
+
+.success-message {
+    background-color: #f0fff4;
+    color: #38a169;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    display: block;
+    border: 1px solid #9ae6b4;
+}
+
+.user-type-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 10px;
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    color: #ffffff;
+}
+
+.customer-badge {
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    color: #ffffff;
+}
+
+.admin-badge {
+    background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+    color: #ffffff;
+}
+
+/* Password Requirements */
+.password-requirements {
+    margin-top: 8px;
+    font-size: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 15px;
+}
+
+.requirement {
+    padding: 3px 0;
+    color: #999999;
+    transition: color 0.3s ease;
+    white-space: nowrap;
+}
+
+.requirement.valid {
+    color: #38a169;
+}
+
+.requirement.valid::before {
+    content: '✓ ';
+    color: #38a169;
+    font-weight: bold;
+}
+
+.requirement.invalid {
+    color: #999999;
+}
+
+.requirement.invalid::before {
+    content: '○ ';
+    color: #999999;
+}
+
+/* Responsive Design for Two Column Layout */
+@media (max-width: 968px) {
+    .page-wrapper {
+        flex-direction: column;
+        gap: 40px;
+        padding: 20px;
+    }
+    
+    .logo-section {
+        max-width: 100%;
+    }
+    
+    .logo-section .page-logo {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .logo-section h2 {
+        font-size: 2rem;
+    }
+    
+    .trust-quote {
+        font-size: 1rem;
+        padding: 15px;
+    }
+    
+    .form-section {
+        max-width: 100%;
+    }
+}

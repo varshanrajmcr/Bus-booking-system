@@ -1,0 +1,11 @@
+[
+  {
+    "customerId": 1,
+    "fullName": "Varshanraj",
+    "email": "12345@gmail.com",
+    "phone": "0000000000",
+    "password": "0000000000",
+    "userType": "customer",
+    "createdAt": "2025-12-03T08:24:09.604Z"
+  }
+]

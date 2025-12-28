@@ -1,0 +1,34 @@
+[
+  {
+    "busName": "Premium sleeper/seater",
+    "adminId": 1,
+    "enterpriseName": "Volvo",
+    "from": "Chennai",
+    "to": "Coimbatore",
+    "departureTime": "22:30",
+    "arrivalTime": "07:30",
+    "duration": "9h 00m",
+    "seaterPrice": 800,
+    "sleeperPrice": 1200,
+    "availableSeats": 28,
+    "busType": "AC Seater/Sleeper",
+    "totalSeats": 32,
+    "busId": 1
+  },
+  {
+    "busName": "Premium sleeper",
+    "adminId": 1,
+    "enterpriseName": "Volvo",
+    "from": "Chennai",
+    "to": "Coimbatore",
+    "departureTime": "00:30",
+    "arrivalTime": "06:30",
+    "duration": "6h 0m",
+    "seaterPrice": 500,
+    "sleeperPrice": 1100,
+    "availableSeats": 32,
+    "busType": "AC Sleeper",
+    "totalSeats": 32,
+    "busId": 2
+  }
+]

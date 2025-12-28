@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Your Seats - JourneyJunction</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <link rel="stylesheet" href="/css/booking.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2>🚌 JourneyJunction</h2>
+            <div class="nav-links">
+                <span id="userName">Welcome, User</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="booking-container">
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        
+        <div class="booking-header">
+            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                <button class="btn-back" onclick="goBackToDashboard()">
+                    ← Back to Search
+                </button>
+            </div>
+            <h1>Select Your Seats</h1>
+            <div class="booking-info" id="bookingInfo"></div>
+        </div>
+
+        <div class="booking-content">
+            <div class="seat-selection-section">
+                <div class="bus-layout">
+                    <div class="driver-section">
+                        <div class="exit-section">
+                            <div class="exit-icon">🚪</div>
+                            <div class="exit-label">EXIT</div>
+                        </div>
+                        <div class="driver-area">
+                            <div class="driver-icon">🚌</div>
+                            <div class="driver-label">DRIVER</div>
+                        </div>
+                    </div>
+                    
+                    <div class="seats-container">
+                        <div class="seat-legend">
+                            <div class="legend-item">
+                                <div class="seat-available"></div>
+                                <span>Available</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="seat-selected"></div>
+                                <span>Selected</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="seat-occupied"></div>
+                                <span>Occupied</span>
+                            </div>
+                        </div>
+                        
+                        <div class="seat-layout-wrapper">
+                            <div class="window-label left-window">Window</div>
+                            <div class="seat-grid" id="seatGrid"></div>
+                            <div class="window-label right-window">Window</div>
+                        </div>
+                        
+                        <div class="seat-info">
+                            <p><strong>Selected Seats:</strong> <span id="selectedSeats">None</span></p>
+                            <p><strong>Total Amount:</strong> ₹<span id="totalAmount">0</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="passenger-details-section">
+                <div class="passenger-header">
+                    <h2>Passenger Details</h2>
+                    <div class="passenger-counter">
+                        <span id="currentPassenger">1</span> of <span id="totalPassengers">1</span>
+                    </div>
+                </div>
+                <form id="passengerForm">
+                    <div id="passengerFields"></div>
+                    <div class="passenger-navigation">
+                        <button type="button" class="btn-nav btn-prev" id="prevButton" style="display: none;" onclick="showPreviousPassenger()">
+                            ← Previous
+                        </button>
+                        <button type="button" class="btn-nav btn-next" id="nextButton" onclick="showNextPassenger()">
+                            Next Passenger →
+                        </button>
+                        <button type="submit" class="btn-book-final" id="bookButton" style="display: none;">
+                            Confirm Booking
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/routeTracker.js"></script>
+    <script src="/js/customer-booking.js"></script>
+</body>
+</html>
+

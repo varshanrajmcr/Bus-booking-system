@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - JourneyJunction</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2><img src="/images/logo.jpg" alt="JourneyJunction Logo" class="nav-logo"> JourneyJunction</h2>
+            <div class="nav-links">
+                <a href="/customer/bookings.html" style="color: white; text-decoration: none; margin-right: 20px; padding: 8px 15px; background: #C9A961; border-radius: 5px; transition: background 0.3s;" onmouseover="this.style.background='#f2be49'" onmouseout="this.style.background='#C9A961'">My Bookings</a>
+                <span id="userName">Welcome, User</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="search-section">
+            <h1>Search Buses</h1>
+            <form id="searchForm" class="search-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fromLocation">From</label>
+                        <input type="text" id="fromLocation" name="fromLocation" placeholder="Enter departure city" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="toLocation">To</label>
+                        <input type="text" id="toLocation" name="toLocation" placeholder="Enter destination city" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="travelDate">Travel Date</label>
+                        <input type="date" id="travelDate" name="travelDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="passengers">Passengers</label>
+                        <input type="number" id="passengers" name="passengers" min="1" max="10" value="1" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-search">Search Buses</button>
+            </form>
+        </div>
+
+        <div id="loadingMessage" class="loading-message" style="display: none;">
+            Searching for buses...
+        </div>
+
+        <div id="noResults" class="no-results" style="display: none;">
+            <p>No buses found for your search. Please try different locations or date.</p>
+        </div>
+
+        <div id="busResults" class="bus-results"></div>
+    </div>
+
+    <script src="/js/routeTracker.js"></script>
+    <script src="/js/customer-dashboard.js"></script>
+</body>
+</html>
+

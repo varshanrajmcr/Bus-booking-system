@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - JourneyJunction</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <!-- Chart.js for pie chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        .admin-dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .dashboard-header {
+            background: linear-gradient(135deg, #C9A961 0%, #B8860B 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .dashboard-header h1 {
+            color: white;
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .admin-info {
+            text-align: right;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 25px;
+            border-radius: 10px;
+        }
+        
+        .admin-info .enterprise-name {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .admin-info #adminName {
+            color: white;
+            font-size: 14px;
+            opacity: 1;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 25px;
+            background: #f5f5f5;
+            padding: 5px;
+            border-radius: 10px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 25px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab-button.active {
+            background: #C9A961;
+            color: white;
+            box-shadow: 0 2px 8px rgba(201, 169, 97, 0.3);
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .section-title {
+            font-size: 24px;
+            color: #C9A961;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: #C9A961;
+            border-radius: 2px;
+        }
+        
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #C9A961;
+        }
+        
+        .btn-filter {
+            background: #C9A961;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-filter:hover {
+            background: #B8860B;
+        }
+        
+        .btn-clear {
+            background: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-clear:hover {
+            background: #555;
+        }
+        
+        /* Add Bus Form */
+        .add-bus-form {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #C9A961;
+        }
+        
+        .form-group input[readonly] {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+        
+        .btn-add-bus {
+            background: #C9A961;
+            color: white;
+            padding: 14px 35px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(201, 169, 97, 0.3);
+        }
+        
+        .btn-add-bus:hover {
+            background: #B8860B;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(201, 169, 97, 0.4);
+        }
+        
+        /* Buses List */
+        .buses-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .bus-card-admin {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .bus-card-admin:hover {
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.2);
+            border-color: #C9A961;
+            transform: translateY(-2px);
+        }
+        
+        .bus-info-admin {
+            flex: 1;
+        }
+        
+        .bus-info-admin h3 {
+            margin: 0 0 15px 0;
+            color: #C9A961;
+            font-size: 20px;
+        }
+        
+        .bus-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .bus-detail-item {
+            font-size: 14px;
+            color: #666;
+            padding: 8px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        
+        .bus-detail-item strong {
+            color: #333;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .bus-actions {
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+        }
+        
+        .btn-edit, .btn-delete {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            min-width: 100px;
+        }
+        
+        .btn-edit {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .btn-delete {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+        
+        /* Bookings List */
+        .bookings-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .booking-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+        }
+        
+        .booking-card:hover {
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.2);
+            border-color: #C9A961;
+        }
+        
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .booking-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #C9A961;
+        }
+        
+        .booking-status {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-confirmed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-cancelled {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .booking-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .passengers-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .passengers-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .passengers-list {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .passenger-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .passenger-detail {
+            font-size: 14px;
+        }
+        
+        .passenger-detail strong {
+            color: #666;
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .passenger-detail span {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .seats-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #C9A961;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .no-data-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+        
+        .chart-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #C9A961;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            border-left: 4px solid #c62828;
+        }
+        
+        .success-message {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            border-left: 4px solid #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2><img src="/images/logo.jpg" alt="JourneyJunction Logo" class="nav-logo"> JourneyJunction</h2>
+            <div class="nav-links">
+                <span id="userName">Welcome, Admin</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="admin-dashboard">
+        <div class="dashboard-header">
+            <div>
+                <h1>Admin Dashboard</h1>
+            </div>
+            <div class="admin-info">
+                <div class="enterprise-name" id="enterpriseNameDisplay">Enterprise Name</div>
+                <div id="adminName">Admin Name</div>
+            </div>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('overview', this)"> Overview</button>
+            <button class="tab-button" onclick="switchTab('buses', this)"> My Buses</button>
+            <button class="tab-button" onclick="switchTab('add-bus', this)">➕ Add New Bus</button>
+            <button class="tab-button" onclick="switchTab('bookings', this)"> Bookings</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview-tab" class="tab-content active">
+            <div class="section-title">Dashboard Overview</div>
+            <div class="stats-cards" id="statsCards">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalBuses">0</div>
+                    <div class="stat-label">Total Buses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalBookings">0</div>
+                    <div class="stat-label">Total Bookings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalRevenue">₹0</div>
+                    <div class="stat-label">Total Revenue</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPassengers">0</div>
+                    <div class="stat-label">Total Passengers</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <div class="chart-title"> Bookings by Bus</div>
+                <div class="chart-wrapper">
+                    <canvas id="bookingsPieChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Buses Tab -->
+        <div id="buses-tab" class="tab-content">
+            <div class="section-title">My Scheduled Buses</div>
+            
+            <!-- Filter Section for Buses -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="filterBusDate">Filter by Date</label>
+                        <input type="date" id="filterBusDate">
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-filter" onclick="applyBusFilters()">Apply Filter</button>
+                            <button type="button" class="btn-clear" onclick="clearBusFilters()">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="busesList" class="buses-list">
+                <div class="no-data">Loading buses...</div>
+            </div>
+        </div>
+
+        <!-- Add Bus Tab -->
+        <div id="add-bus-tab" class="tab-content">
+            <div class="section-title">Schedule New Bus</div>
+            <form id="addBusForm" class="add-bus-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="busName">Bus Name *</label>
+                        <input type="text" id="busName" name="busName" placeholder="e.g., Volvo AC Sleeper" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="enterpriseName">Enterprise Name *</label>
+                        <input type="text" id="enterpriseName" name="enterpriseName" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label for="from">From (Departure City) *</label>
+                        <input type="text" id="from" name="from" placeholder="e.g., Mumbai" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="to">To (Destination City) *</label>
+                        <input type="text" id="to" name="to" placeholder="e.g., Pune" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="date">Schedule Date *</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="departureTime">Departure Time *</label>
+                        <input type="time" id="departureTime" name="departureTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="arrivalTime">Arrival Time *</label>
+                        <input type="time" id="arrivalTime" name="arrivalTime" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration">Duration (Auto-calculated) *</label>
+                        <input type="text" id="duration" name="duration" placeholder="e.g., 4h 0m" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label for="seaterPrice">Seater Price (₹) *</label>
+                        <input type="number" id="seaterPrice" name="seaterPrice" min="0" step="0.01" placeholder="500" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="sleeperPrice">Sleeper Price (₹) *</label>
+                        <input type="number" id="sleeperPrice" name="sleeperPrice" min="0" step="0.01" placeholder="1100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="busType">Bus Type *</label>
+                        <select id="busType" name="busType" required>
+                            <option value="">Select Bus Type</option>
+                            <option value="AC Seater/Sleeper">AC Seater/Sleeper</option>
+                            <option value="Non-AC Seater/Sleeper">Non-AC Seater/Sleeper</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="totalSeats">Total Seats *</label>
+                        <input type="number" id="totalSeats" name="totalSeats" min="1" max="50" value="32" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn-add-bus">Schedule Bus</button>
+            </form>
+        </div>
+
+        <!-- Bookings Tab -->
+        <div id="bookings-tab" class="tab-content">
+            <div class="section-title">All Bookings</div>
+            
+            <!-- Filter Section -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="filterBus">Filter by Bus</label>
+                        <select id="filterBus">
+                            <option value="">All Buses</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterDate">Filter by Date</label>
+                        <input type="date" id="filterDate">
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterStatus">Filter by Status</label>
+                        <select id="filterStatus">
+                            <option value="">All Status</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+                            <button type="button" class="btn-clear" onclick="clearFilters()">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="bookingsList" class="bookings-list">
+                <div class="no-data">Loading bookings...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/admin-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+[
+  {
+    "bookingId": "BK1765217957382",
+    "name": "Varshan",
+    "age": 22,
+    "gender": "Male",
+    "seatNumber": 8,
+    "seatType": "sleeper",
+    "price": 1200,
+    "passengerId": 1
+  },
+  {
+    "bookingId": "BK1765257417846",
+    "name": "Pete",
+    "age": 22,
+    "gender": "Male",
+    "seatNumber": 1,
+    "seatType": "sleeper",
+    "price": 1100,
+    "passengerId": 2
+  },
+  {
+    "bookingId": "BK1765258481949",
+    "name": "Raul",
+    "age": 42,
+    "gender": "Male",
+    "seatNumber": 5,
+    "seatType": "sleeper",
+    "price": 1200,
+    "passengerId": 3
+  },
+  {
+    "bookingId": "BK1765258481949",
+    "name": "Henry",
+    "age": 34,
+    "gender": "Male",
+    "seatNumber": 6,
+    "seatType": "sleeper",
+    "price": 1200,
+    "passengerId": 4
+  },
+  {
+    "bookingId": "BK1765258481949",
+    "name": "Lenna",
+    "age": 24,
+    "gender": "Female",
+    "seatNumber": 22,
+    "seatType": "seater",
+    "price": 800,
+    "passengerId": 5
+  },
+  {
+    "bookingId": "BK1765263219759",
+    "name": "Spidey",
+    "age": 22,
+    "gender": "Male",
+    "seatNumber": 1,
+    "seatType": "sleeper",
+    "price": 1200,
+    "passengerId": 6
+  }
+]

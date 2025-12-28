@@ -1,0 +1,112 @@
+[
+  {
+    "bookingId": "BK1765217957382",
+    "busId": 1,
+    "customerId": 1,
+    "adminId": 1,
+    "date": "2025-12-12",
+    "seats": [
+      8
+    ],
+    "passengers": [
+      {
+        "name": "Varshan",
+        "age": 22,
+        "gender": "Male",
+        "seatNumber": 8,
+        "seatType": "sleeper",
+        "price": 1200
+      }
+    ],
+    "totalAmount": 1200,
+    "status": "confirmed",
+    "createdAt": "2025-12-08T18:19:17.382Z"
+  },
+  {
+    "bookingId": "BK1765257417846",
+    "busId": 2,
+    "customerId": 1,
+    "adminId": 1,
+    "date": "2025-12-12",
+    "seats": [
+      1
+    ],
+    "passengers": [
+      {
+        "name": "Pete",
+        "age": 22,
+        "gender": "Male",
+        "seatNumber": 1,
+        "seatType": "sleeper",
+        "price": 1100
+      }
+    ],
+    "totalAmount": 1100,
+    "status": "confirmed",
+    "createdAt": "2025-12-09T05:16:57.847Z"
+  },
+  {
+    "bookingId": "BK1765258481949",
+    "busId": 1,
+    "customerId": 1,
+    "adminId": 1,
+    "date": "2025-12-12",
+    "seats": [
+      5,
+      6,
+      22
+    ],
+    "passengers": [
+      {
+        "name": "Raul",
+        "age": 42,
+        "gender": "Male",
+        "seatNumber": 5,
+        "seatType": "sleeper",
+        "price": 1200
+      },
+      {
+        "name": "Henry",
+        "age": 34,
+        "gender": "Male",
+        "seatNumber": 6,
+        "seatType": "sleeper",
+        "price": 1200
+      },
+      {
+        "name": "Lenna",
+        "age": 24,
+        "gender": "Female",
+        "seatNumber": 22,
+        "seatType": "seater",
+        "price": 800
+      }
+    ],
+    "totalAmount": 3200,
+    "status": "confirmed",
+    "createdAt": "2025-12-09T05:34:41.949Z"
+  },
+  {
+    "bookingId": "BK1765263219759",
+    "busId": 1,
+    "customerId": 1,
+    "adminId": 1,
+    "date": "2025-12-10",
+    "seats": [
+      1
+    ],
+    "passengers": [
+      {
+        "name": "Spidey",
+        "age": 22,
+        "gender": "Male",
+        "seatNumber": 1,
+        "seatType": "sleeper",
+        "price": 1200
+      }
+    ],
+    "totalAmount": 1200,
+    "status": "confirmed",
+    "createdAt": "2025-12-09T06:53:39.759Z"
+  }
+]

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JourneyJunction - Welcome</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            background: #2D1B1E;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Splash Screen */
+        .splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(45, 27, 30, 0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+
+        .splash-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .splash-logo {
+            width: 200px;
+            height: 200px;
+            margin-bottom: 30px;
+            animation: logoEntrance 1.2s ease-out, logoFloat 3s ease-in-out 1.2s infinite;
+            filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3));
+            object-fit: cover;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .splash-name {
+            font-size: 3.5rem;
+            color: #C9A961;
+            font-weight: 700;
+            text-shadow: 0 0 20px rgba(201, 169, 97, 0.5), 2px 2px 20px rgba(0, 0, 0, 0.8);
+            letter-spacing: 3px;
+            animation: nameReveal 1.5s ease-out 0.5s both;
+            position: relative;
+        }
+
+        .splash-name::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #C9A961, transparent);
+            animation: underlineExpand 1s ease-out 1.8s both;
+            box-shadow: 0 0 10px rgba(201, 169, 97, 0.8);
+        }
+
+        .splash-tagline {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.2rem;
+            margin-top: 40px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            animation: fadeInUp 1s ease-out 2s both;
+            text-shadow: 0 0 10px rgba(201, 169, 97, 0.3);
+        }
+
+        /* Splash Screen Particles */
+        .splash-particles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(201, 169, 97, 0.8);
+            border-radius: 50%;
+            animation: particleFloat 15s infinite ease-in-out;
+            box-shadow: 0 0 10px rgba(201, 169, 97, 0.6);
+        }
+
+        .particle:nth-child(1) {
+            left: 10%;
+            animation-delay: 0s;
+            animation-duration: 12s;
+        }
+
+        .particle:nth-child(2) {
+            left: 20%;
+            animation-delay: 2s;
+            animation-duration: 18s;
+        }
+
+        .particle:nth-child(3) {
+            left: 30%;
+            animation-delay: 4s;
+            animation-duration: 15s;
+        }
+
+        .particle:nth-child(4) {
+            left: 40%;
+            animation-delay: 1s;
+            animation-duration: 20s;
+        }
+
+        .particle:nth-child(5) {
+            left: 50%;
+            animation-delay: 3s;
+            animation-duration: 14s;
+        }
+
+        .particle:nth-child(6) {
+            left: 60%;
+            animation-delay: 5s;
+            animation-duration: 16s;
+        }
+
+        .particle:nth-child(7) {
+            left: 70%;
+            animation-delay: 2.5s;
+            animation-duration: 13s;
+        }
+
+        .particle:nth-child(8) {
+            left: 80%;
+            animation-delay: 4.5s;
+            animation-duration: 17s;
+        }
+
+        .particle:nth-child(9) {
+            left: 90%;
+            animation-delay: 1.5s;
+            animation-duration: 19s;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translateY(100vh) translateX(0) scale(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(50px) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Splash Screen Animations */
+        @keyframes logoEntrance {
+            0% {
+                transform: scale(0) rotate(-180deg);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.2) rotate(10deg);
+            }
+            100% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+        }
+
+        @keyframes logoFloat {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+            50% {
+                transform: translateY(-10px) rotate(-5deg);
+            }
+            75% {
+                transform: translateY(-15px) rotate(3deg);
+            }
+        }
+
+        @keyframes nameReveal {
+            0% {
+                opacity: 0;
+                transform: translateY(30px) scale(0.8);
+                letter-spacing: 10px;
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+                letter-spacing: 3px;
+            }
+        }
+
+        @keyframes underlineExpand {
+            from {
+                width: 0;
+            }
+            to {
+                width: 200px;
+            }
+        }
+
+        /* Main Content - Hidden Initially */
+        .main-content {
+            opacity: 0;
+            transition: opacity 0.8s ease-in 0.3s;
+        }
+
+        .main-content.visible {
+            opacity: 1;
+        }
+
+        /* Animated Background Elements */
+        .background-animation {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .floating-shape {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(201, 169, 97, 0.15);
+            animation: float 20s infinite ease-in-out;
+            box-shadow: 0 0 30px rgba(201, 169, 97, 0.3);
+        }
+
+        .shape-1 {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            left: -100px;
+            animation-delay: 0s;
+        }
+
+        .shape-2 {
+            width: 200px;
+            height: 200px;
+            bottom: -50px;
+            right: -50px;
+            animation-delay: 5s;
+        }
+
+        .shape-3 {
+            width: 150px;
+            height: 150px;
+            top: 50%;
+            right: 10%;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) rotate(0deg);
+            }
+            33% {
+                transform: translate(30px, -30px) rotate(120deg);
+            }
+            66% {
+                transform: translate(-20px, 20px) rotate(240deg);
+            }
+        }
+
+        /* Main Container */
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 40px 20px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        /* Header Section */
+        .header {
+            margin-bottom: 60px;
+            animation: fadeInDown 1s ease-out;
+        }
+
+        .logo {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+            display: inline-block;
+            object-fit: cover;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        h1 {
+            color: #C9A961;
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px rgba(201, 169, 97, 0.5), 2px 2px 10px rgba(0, 0, 0, 0.8);
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.3rem;
+            font-weight: 300;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(201, 169, 97, 0.2);
+        }
+
+        .tagline {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1rem;
+            font-style: italic;
+        }
+
+        /* Cards Container */
+        .cards-container {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        /* Portal Card */
+        .portal-card {
+            background: #2D1B1E;
+            border: 2px solid #C9A961;
+            border-radius: 20px;
+            padding: 40px;
+            width: 350px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(201, 169, 97, 0.2);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(201, 169, 97, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .portal-card:hover::before {
+            left: 100%;
+        }
+
+        .portal-card:hover {
+            transform: translateY(-15px) scale(1.05);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 50px rgba(201, 169, 97, 0.4);
+            border-color: #D4AF37;
+        }
+
+        .portal-card:active {
+            transform: translateY(-10px) scale(1.02);
+        }
+
+        .card-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+            display: block;
+            animation: pulse 2s infinite;
+        }
+
+        .portal-card:hover .card-icon {
+            animation: bounce 0.6s ease;
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            color: #C9A961;
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(201, 169, 97, 0.5);
+        }
+
+        .card-description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+
+        .card-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #C9A961 0%, #B8860B 100%);
+            color: #000000;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.4);
+        }
+
+        .portal-card:hover .card-button {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(201, 169, 97, 0.6);
+            background: linear-gradient(135deg, #D4AF37 0%, #C9A961 100%);
+        }
+
+        /* Customer Card Specific */
+        .customer-card {
+            border-top: 4px solid #C9A961;
+        }
+
+        .customer-card .card-button {
+            background: linear-gradient(135deg, #C9A961 0%, #B8860B 100%);
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.4);
+        }
+
+        .customer-card:hover .card-button {
+            box-shadow: 0 6px 20px rgba(201, 169, 97, 0.6);
+        }
+
+        /* Admin Card Specific */
+        .admin-card {
+            border-top: 4px solid #C9A961;
+        }
+
+        .admin-card .card-button {
+            background: linear-gradient(135deg, #C9A961 0%, #B8860B 100%);
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.4);
+        }
+
+        .admin-card:hover .card-button {
+            box-shadow: 0 6px 20px rgba(201, 169, 97, 0.6);
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        /* Decorative Elements */
+        .decorative-line {
+            width: 100px;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #C9A961, transparent);
+            margin: 20px auto;
+            border-radius: 2px;
+            animation: expand 1s ease-out 0.5s both;
+            box-shadow: 0 0 10px rgba(201, 169, 97, 0.8);
+        }
+
+        @keyframes expand {
+            from {
+                width: 0;
+            }
+            to {
+                width: 100px;
+            }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .splash-logo {
+                width: 150px;
+                height: 150px;
+            }
+
+            .splash-name {
+                font-size: 2rem;
+                letter-spacing: 2px;
+            }
+
+            .splash-tagline {
+                font-size: 1rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .logo {
+                width: 80px;
+                height: 80px;
+            }
+
+            .portal-card {
+                width: 100%;
+                max-width: 350px;
+            }
+
+            .cards-container {
+                gap: 30px;
+            }
+        }
+
+        /* Loading Animation */
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        .portal-card {
+            background-size: 2000px 100%;
+            animation: shimmer 3s infinite linear;
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Animation - Visible on entire page -->
+    <div class="background-animation">
+        <div class="floating-shape shape-1"></div>
+        <div class="floating-shape shape-2"></div>
+        <div class="floating-shape shape-3"></div>
+    </div>
+
+    <!-- Splash Screen -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-particles">
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+            <div class="particle"></div>
+        </div>
+        <img src="/images/logo.jpg" alt="JourneyJunction Logo" class="splash-logo">
+        <h1 class="splash-name">JourneyJunction</h1>
+        <p class="splash-tagline">Your Journey, Our Promise</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+
+    <div class="container">
+        <div class="header">
+            <img src="/images/logo.jpg" alt="JourneyJunction Logo" class="logo">
+            <h1>Welcome to JourneyJunction</h1>
+            <p class="subtitle">Your Journey Starts Here</p>
+            <div class="decorative-line"></div>
+            <p class="tagline">Choose your portal to continue</p>
+        </div>
+
+        <div class="cards-container">
+            <a href="/customer/login.html" class="portal-card customer-card">
+                <span class="card-icon">👤</span>
+                <h2 class="card-title">Customer Portal</h2>
+                <p class="card-description">
+                    Book your tickets, manage your reservations, and explore our wide range of bus routes. 
+                    Start your journey with just a few clicks!
+                </p>
+                <span class="card-button">Enter as Customer →</span>
+            </a>
+
+            <a href="/admin/login.html" class="portal-card admin-card">
+                <span class="card-icon">👨‍💼</span>
+                <h2 class="card-title">Admin Portal</h2>
+                <p class="card-description">
+                    Manage bus routes, view bookings, and oversee the entire system. 
+                    Access your administrative dashboard here.
+                </p>
+                <span class="card-button">Enter as Admin →</span>
+            </a>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        // Splash Screen Transition and Main Content Animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const splashScreen = document.getElementById('splashScreen');
+            const mainContent = document.getElementById('mainContent');
+            
+            // Show splash screen for 3.5 seconds, then transition to main content
+            setTimeout(function() {
+                splashScreen.classList.add('hidden');
+                mainContent.classList.add('visible');
+                
+                // Remove splash screen from DOM after transition completes
+                setTimeout(function() {
+                    splashScreen.style.display = 'none';
+                }, 800);
+            }, 3500);
+
+            // Main Content Animations
+            const cards = document.querySelectorAll('.portal-card');
+            
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${index * 0.1}s`;
+                
+                // Add ripple effect on click
+                card.addEventListener('click', function(e) {
+                    const ripple = document.createElement('span');
+                    const rect = this.getBoundingClientRect();
+                    const size = Math.max(rect.width, rect.height);
+                    const x = e.clientX - rect.left - size / 2;
+                    const y = e.clientY - rect.top - size / 2;
+                    
+                    ripple.style.width = ripple.style.height = size + 'px';
+                    ripple.style.left = x + 'px';
+                    ripple.style.top = y + 'px';
+                    ripple.classList.add('ripple');
+                    
+                    this.appendChild(ripple);
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+        });
+
+        // Add CSS for ripple effect
+        const style = document.createElement('style');
+        style.textContent = `
+            .ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(201, 169, 97, 0.4);
+                transform: scale(0);
+                animation: ripple-animation 0.6s ease-out;
+                pointer-events: none;
+            }
+            
+            @keyframes ripple-animation {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

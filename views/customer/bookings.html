@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings - JourneyJunction</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        .bookings-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #C9A961 0%, #B8860B 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .page-header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .back-link {
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+        
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .section-title {
+            font-size: 24px;
+            color: #C9A961;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: #C9A961;
+            border-radius: 2px;
+        }
+        
+        /* Filter Section */
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #C9A961;
+        }
+        
+        .btn-filter {
+            background: #C9A961;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-filter:hover {
+            background: #B8860B;
+        }
+        
+        .btn-clear {
+            background: #666;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn-clear:hover {
+            background: #555;
+        }
+        
+        /* Bookings List */
+        .bookings-list {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .booking-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s;
+        }
+        
+        .booking-card:hover {
+            box-shadow: 0 4px 15px rgba(201, 169, 97, 0.2);
+            border-color: #C9A961;
+        }
+        
+        .booking-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .booking-id {
+            font-size: 18px;
+            font-weight: bold;
+            color: #C9A961;
+        }
+        
+        .booking-status {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-confirmed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-cancelled {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .cancellation-notice {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            color: #856404;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .cancellation-notice::before {
+            content: '⚠️';
+            font-size: 24px;
+        }
+        
+        .btn-cancel-booking {
+            padding: 8px 16px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-cancel-booking:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+        }
+        
+        .btn-cancel-booking:active {
+            transform: translateY(0);
+        }
+        
+        .booking-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .passengers-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .passengers-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .passengers-list {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .passenger-item {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .passenger-detail {
+            font-size: 14px;
+        }
+        
+        .passenger-detail strong {
+            color: #666;
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .passenger-detail span {
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .seats-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #C9A961;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .no-data-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            border-left: 4px solid #c62828;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <h2><img src="/images/logo.jpg" alt="JourneyJunction Logo" class="nav-logo"> JourneyJunction</h2>
+            <div class="nav-links">
+                <span id="userName">Welcome, User</span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="bookings-container">
+        <div class="page-header">
+            <h1>My Bookings</h1>
+            <a href="/customer/dashboard.html" class="back-link">← Back to Book buses</a>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <div class="section-title">All My Bookings</div>
+        
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="filterBus">Filter by Bus</label>
+                    <select id="filterBus">
+                        <option value="">All Buses</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterDate">Filter by Date</label>
+                    <input type="date" id="filterDate">
+                </div>
+                <div class="filter-group">
+                    <label for="filterStatus">Filter by Status</label>
+                    <select id="filterStatus">
+                        <option value="">All Status</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="btn-filter" onclick="applyFilters()">Apply Filters</button>
+                        <button type="button" class="btn-clear" onclick="clearFilters()">Clear</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="bookingsList" class="bookings-list">
+            <div class="no-data">Loading bookings...</div>
+        </div>
+    </div>
+
+    <script src="/js/routeTracker.js"></script>
+    <script src="/js/customer-bookings.js"></script>
+</body>
+</html>
+
