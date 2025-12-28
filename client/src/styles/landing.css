@@ -1,0 +1,284 @@
+/* Landing Page Styles - FlixBus Theme */
+
+.landing-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+}
+
+.landing-container {
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header */
+.landing-header {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 4px 20px rgba(151, 215, 0, 0.2);
+}
+
+.landing-logo h1 {
+  margin: 0;
+  font-size: 42px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tagline {
+  margin: 12px 0 0 0;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 500;
+}
+
+/* Main Content */
+.landing-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: #ffffff;
+}
+
+.landing-content {
+  width: 100%;
+  max-width: 900px;
+  text-align: center;
+}
+
+.landing-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #333333;
+  margin: 0 0 16px 0;
+}
+
+.landing-subtitle {
+  font-size: 18px;
+  color: #666666;
+  margin: 0 0 50px 0;
+  line-height: 1.6;
+}
+
+/* User Type Selection */
+.user-type-selection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.user-type-card {
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
+  border-radius: 16px;
+  padding: 40px 30px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.user-type-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #97d700;
+}
+
+.customer-card:hover {
+  border-color: #97d700;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fdf0 100%);
+}
+
+.admin-card:hover {
+  border-color: #97d700;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fdf0 100%);
+}
+
+.card-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.user-type-card h3 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333333;
+  margin: 0 0 12px 0;
+}
+
+.user-type-card p {
+  font-size: 16px;
+  color: #666666;
+  margin: 0 0 30px 0;
+  line-height: 1.6;
+}
+
+.card-button {
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
+.customer-button {
+  background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(151, 215, 0, 0.3);
+}
+
+.customer-button:hover {
+  background: linear-gradient(135deg, #7ab800 0%, #5d8f00 100%);
+  box-shadow: 0 6px 16px rgba(151, 215, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.admin-button {
+  background: linear-gradient(135deg, #97d700 0%, #7ab800 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(151, 215, 0, 0.3);
+}
+
+.admin-button:hover {
+  background: linear-gradient(135deg, #7ab800 0%, #5d8f00 100%);
+  box-shadow: 0 6px 16px rgba(151, 215, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Quick Links */
+.quick-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 30px;
+}
+
+.quick-link {
+  color: #97d700;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.quick-link:hover {
+  color: #7ab800;
+  background: rgba(151, 215, 0, 0.1);
+  text-decoration: underline;
+}
+
+.link-separator {
+  color: #cccccc;
+  font-size: 18px;
+}
+
+/* Footer */
+.landing-footer {
+  text-align: center;
+  padding: 30px 20px;
+  background: #f8f9fa;
+  border-radius: 0 0 16px 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.landing-footer p {
+  margin: 0;
+  font-size: 14px;
+  color: #999999;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .landing-logo h1 {
+    font-size: 32px;
+  }
+
+  .tagline {
+    font-size: 16px;
+  }
+
+  .landing-title {
+    font-size: 28px;
+  }
+
+  .landing-subtitle {
+    font-size: 16px;
+  }
+
+  .user-type-selection {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .user-type-card {
+    padding: 30px 20px;
+  }
+
+  .card-icon {
+    font-size: 48px;
+  }
+
+  .user-type-card h3 {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page {
+    padding: 10px;
+  }
+
+  .landing-header {
+    padding: 30px 15px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .landing-logo h1 {
+    font-size: 28px;
+  }
+
+  .landing-main {
+    padding: 40px 15px;
+  }
+
+  .landing-title {
+    font-size: 24px;
+  }
+
+  .landing-subtitle {
+    font-size: 15px;
+  }
+
+  .quick-links {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .link-separator {
+    display: none;
+  }
+}
+

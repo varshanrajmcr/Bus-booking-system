@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import Landing from './components/Landing';
 import CustomerLogin from './components/customer/CustomerLogin';
 import CustomerSignup from './components/customer/CustomerSignup';
 import CustomerDashboard from './components/customer/CustomerDashboard';
@@ -13,7 +14,7 @@ function App() {
     <div style={{ width: '100%', minHeight: '100vh' }}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/customer/login" replace />} />
+          <Route path="/" element={<Landing />} />
           
           {/* Customer Routes */}
           <Route path="/customer/login" element={<CustomerLogin />} />
