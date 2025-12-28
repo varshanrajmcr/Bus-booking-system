@@ -1,5 +1,5 @@
 const { Worker } = require('bullmq');
-const { redisConnection, QUEUE_NAMES } = require('./queueConfig');
+const { redisConnection, QUEUE_NAMES, isRedisAvailable } = require('./queueConfig');
 const nodemailer = require('nodemailer');
 
 // Gmail SMTP configuration
@@ -30,7 +30,11 @@ transporter.verify((error, success) => {
  * Email Queue Processor
  * Processes booking confirmation emails
  */
-const emailWorker = new Worker(
+let emailWorker, loggingWorker, notificationWorker, cleanupWorker;
+
+// Only create workers if Redis is available
+if (redisConnection) {
+    emailWorker = new Worker(
     QUEUE_NAMES.EMAIL,
     async (job) => {
         const { emailType, customerEmail, bookingData } = job.data;
@@ -641,24 +645,24 @@ We hope to serve you again in the future.
     }
 );
 
-// Email worker event handlers
-emailWorker.on('completed', (job) => {
-    console.log(`[Email Queue] Job ${job.id} completed successfully`);
-});
+    // Email worker event handlers
+    emailWorker.on('completed', (job) => {
+        console.log(`[Email Queue] Job ${job.id} completed successfully`);
+    });
 
-emailWorker.on('failed', (job, err) => {
-    console.error(`[Email Queue] Job ${job.id} failed:`, err.message);
-});
+    emailWorker.on('failed', (job, err) => {
+        console.error(`[Email Queue] Job ${job.id} failed:`, err.message);
+    });
 
-emailWorker.on('error', (err) => {
-    console.error(`[Email Queue] Worker error:`, err);
-});
+    emailWorker.on('error', (err) => {
+        console.error(`[Email Queue] Worker error:`, err);
+    });
 
-/**
- * Logging Queue Processor
- * Processes heavy logging operations asynchronously
- */
-const loggingWorker = new Worker(
+    /**
+     * Logging Queue Processor
+     * Processes heavy logging operations asynchronously
+     */
+    loggingWorker = new Worker(
     QUEUE_NAMES.LOGGING,
     async (job) => {
         const { logType, customerId, action, details, req } = job.data;
@@ -707,20 +711,20 @@ const loggingWorker = new Worker(
     }
 );
 
-// Logging worker event handlers
-loggingWorker.on('completed', (job) => {
-    // Silently complete - logging is background task
-});
+    // Logging worker event handlers
+    loggingWorker.on('completed', (job) => {
+        // Silently complete - logging is background task
+    });
 
-loggingWorker.on('failed', (job, err) => {
-    console.error(`[Logging Queue] Job ${job.id} failed:`, err.message);
-});
+    loggingWorker.on('failed', (job, err) => {
+        console.error(`[Logging Queue] Job ${job.id} failed:`, err.message);
+    });
 
-/**
- * Notification Queue Processor
- * Processes admin notifications and alerts
- */
-const notificationWorker = new Worker(
+    /**
+     * Notification Queue Processor
+     * Processes admin notifications and alerts
+     */
+    notificationWorker = new Worker(
     QUEUE_NAMES.NOTIFICATION,
     async (job) => {
         const { notificationType, adminId, data } = job.data;
@@ -744,11 +748,11 @@ const notificationWorker = new Worker(
     }
 );
 
-/**
- * Cleanup Queue Processor
- * Processes scheduled cleanup tasks
- */
-const cleanupWorker = new Worker(
+    /**
+     * Cleanup Queue Processor
+     * Processes scheduled cleanup tasks
+     */
+    cleanupWorker = new Worker(
     QUEUE_NAMES.CLEANUP,
     async (job) => {
         const { cleanupType, data } = job.data;
@@ -777,16 +781,22 @@ const cleanupWorker = new Worker(
         connection: redisConnection,
         concurrency: 1 // Run cleanup tasks one at a time
     }
-);
+    );
+} else {
+    console.log('[Queue Processors] Redis not configured - queue workers not initialized');
+}
 
 // Graceful shutdown
 async function closeWorkers() {
-    await Promise.all([
-        emailWorker.close(),
-        loggingWorker.close(),
-        notificationWorker.close(),
-        cleanupWorker.close()
-    ]);
+    if (!redisConnection) return;
+    
+    const workersToClose = [];
+    if (emailWorker) workersToClose.push(emailWorker.close());
+    if (loggingWorker) workersToClose.push(loggingWorker.close());
+    if (notificationWorker) workersToClose.push(notificationWorker.close());
+    if (cleanupWorker) workersToClose.push(cleanupWorker.close());
+
+    await Promise.all(workersToClose);
     console.log('All queue workers closed gracefully');
 }
 

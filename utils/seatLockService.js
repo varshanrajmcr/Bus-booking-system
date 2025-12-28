@@ -36,6 +36,10 @@ function getSeatLockKeys(busId, date, seatNumbers) {
  * @returns {Promise<boolean>} True if lock acquired, false if already locked
  */
 async function lockSeat(busId, date, seatNumber, customerId, timeoutMinutes = LOCK_TIMEOUT_MINUTES) {
+    if (!redisConnection) {
+        console.warn('[Seat Lock] Redis not configured - seat locking disabled');
+        return true; // Allow booking to proceed
+    }
     try {
         const lockKey = getSeatLockKey(busId, date, seatNumber);
         const lockValue = JSON.stringify({
@@ -80,6 +84,10 @@ async function lockSeat(busId, date, seatNumber, customerId, timeoutMinutes = LO
  * @returns {Promise<{success: boolean, lockedSeats: Array<number>, failedSeats: Array<number>}>}
  */
 async function lockSeats(busId, date, seatNumbers, customerId, timeoutMinutes = LOCK_TIMEOUT_MINUTES) {
+    if (!redisConnection) {
+        console.warn('[Seat Lock] Redis not configured - seat locking disabled');
+        return { success: true, lockedSeats: seatNumbers, failedSeats: [] };
+    }
     try {
         const lockedSeats = [];
         const failedSeats = [];
@@ -124,6 +132,7 @@ async function lockSeats(busId, date, seatNumbers, customerId, timeoutMinutes = 
  * @returns {Promise<boolean>} True if lock released
  */
 async function releaseSeat(busId, date, seatNumber) {
+    if (!redisConnection) return true;
     try {
         const lockKey = getSeatLockKey(busId, date, seatNumber);
         const result = await redisConnection.del(lockKey);
@@ -147,6 +156,7 @@ async function releaseSeat(busId, date, seatNumber) {
  * @returns {Promise<number>} Number of locks released
  */
 async function releaseSeats(busId, date, seatNumbers) {
+    if (!redisConnection) return seatNumbers ? seatNumbers.length : 0;
     try {
         if (!seatNumbers || seatNumbers.length === 0) {
             return 0;
@@ -171,6 +181,7 @@ async function releaseSeats(busId, date, seatNumbers) {
  * @returns {Promise<{locked: boolean, lockInfo: Object|null}>}
  */
 async function isSeatLocked(busId, date, seatNumber) {
+    if (!redisConnection) return { locked: false, lockInfo: null };
     try {
         const lockKey = getSeatLockKey(busId, date, seatNumber);
         const lockValue = await redisConnection.get(lockKey);
@@ -204,6 +215,7 @@ async function isSeatLocked(busId, date, seatNumber) {
  * @returns {Promise<{lockedSeats: Array<number>, availableSeats: Array<number>}>}
  */
 async function checkSeatsLocked(busId, date, seatNumbers) {
+    if (!redisConnection) return { lockedSeats: [], availableSeats: seatNumbers };
     try {
         const lockedSeats = [];
         const availableSeats = [];
@@ -238,6 +250,7 @@ async function checkSeatsLocked(busId, date, seatNumbers) {
  * @returns {Promise<Object|null>} Lock information or null
  */
 async function getSeatLockInfo(busId, date, seatNumber) {
+    if (!redisConnection) return null;
     try {
         const lockKey = getSeatLockKey(busId, date, seatNumber);
         const lockValue = await redisConnection.get(lockKey);
@@ -262,6 +275,7 @@ async function getSeatLockInfo(busId, date, seatNumber) {
  * @returns {Promise<number>} Number of locks extended
  */
 async function extendSeatLocks(busId, date, seatNumbers, additionalMinutes = LOCK_TIMEOUT_MINUTES) {
+    if (!redisConnection) return 0;
     try {
         let extendedCount = 0;
         
@@ -292,6 +306,7 @@ async function extendSeatLocks(busId, date, seatNumbers, additionalMinutes = LOC
  * @returns {Promise<number>} Number of expired locks found
  */
 async function cleanupExpiredLocks() {
+    if (!redisConnection) return 0;
     try {
         // Redis automatically expires keys based on TTL
         // This function is mainly for logging/monitoring
@@ -337,6 +352,7 @@ async function cleanupExpiredLocks() {
  * @returns {Promise<Array<number>>} Array of locked seat numbers
  */
 async function getLockedSeatsForBus(busId, date) {
+    if (!redisConnection) return [];
     try {
         const pattern = `${LOCK_PREFIX}:${busId}:${date}:*`;
         const keys = await redisConnection.keys(pattern);

@@ -2,24 +2,57 @@ const { Queue, Worker } = require('bullmq');
 const IORedis = require('ioredis');
 
 // Redis connection configuration
-// Support both REDIS_URL (Railway) and individual variables
-let redisConnection;
+// Only connect if Redis is configured (REDIS_URL or REDIS_HOST is set)
+let redisConnection = null;
+let isRedisAvailable = false;
 
-if (process.env.REDIS_URL) {
-    // Railway provides REDIS_URL as a connection string
-    redisConnection = new IORedis(process.env.REDIS_URL, {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false
-    });
+// Check if Redis is configured
+const hasRedisConfig = process.env.REDIS_URL || process.env.REDIS_HOST;
+
+if (hasRedisConfig) {
+    if (process.env.REDIS_URL) {
+        // Redis URL connection string (Railway, Render, etc.)
+        redisConnection = new IORedis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 50, 2000);
+                return delay;
+            }
+        });
+    } else if (process.env.REDIS_HOST) {
+        // Individual Redis variables
+        redisConnection = new IORedis({
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+            password: process.env.REDIS_PASSWORD || undefined,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 50, 2000);
+                return delay;
+            }
+        });
+    }
+
+    // Handle Redis connection events
+    if (redisConnection) {
+        redisConnection.on('error', (error) => {
+            console.error('Redis connection error:', error.message);
+            isRedisAvailable = false;
+        });
+
+        redisConnection.on('connect', () => {
+            console.log('Redis connected successfully');
+            isRedisAvailable = true;
+        });
+
+        redisConnection.on('ready', () => {
+            isRedisAvailable = true;
+        });
+    }
 } else {
-    // Fallback to individual variables
-    redisConnection = new IORedis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false
-    });
+    console.log('Redis not configured - running without Redis (caching and queues disabled)');
 }
 
 // Queue names
@@ -30,9 +63,12 @@ const QUEUE_NAMES = {
     CLEANUP: 'cleanup-queue'
 };
 
-// Create queues
-const emailQueue = new Queue(QUEUE_NAMES.EMAIL, {
-    connection: redisConnection,
+// Create queues only if Redis is available
+let emailQueue, loggingQueue, notificationQueue, cleanupQueue;
+
+if (redisConnection) {
+    emailQueue = new Queue(QUEUE_NAMES.EMAIL, {
+        connection: redisConnection,
     defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -49,8 +85,8 @@ const emailQueue = new Queue(QUEUE_NAMES.EMAIL, {
     }
 });
 
-const loggingQueue = new Queue(QUEUE_NAMES.LOGGING, {
-    connection: redisConnection,
+    loggingQueue = new Queue(QUEUE_NAMES.LOGGING, {
+        connection: redisConnection,
     defaultJobOptions: {
         attempts: 2,
         removeOnComplete: {
@@ -63,8 +99,8 @@ const loggingQueue = new Queue(QUEUE_NAMES.LOGGING, {
     }
 });
 
-const notificationQueue = new Queue(QUEUE_NAMES.NOTIFICATION, {
-    connection: redisConnection,
+    notificationQueue = new Queue(QUEUE_NAMES.NOTIFICATION, {
+        connection: redisConnection,
     defaultJobOptions: {
         attempts: 2,
         removeOnComplete: {
@@ -74,32 +110,30 @@ const notificationQueue = new Queue(QUEUE_NAMES.NOTIFICATION, {
     }
 });
 
-const cleanupQueue = new Queue(QUEUE_NAMES.CLEANUP, {
-    connection: redisConnection,
-    defaultJobOptions: {
-        attempts: 1,
-        removeOnComplete: true
-    }
-});
-
-// Handle Redis connection errors
-redisConnection.on('error', (error) => {
-    console.error('Redis connection error:', error);
-});
-
-redisConnection.on('connect', () => {
-    console.log('Redis connected successfully');
-});
+    cleanupQueue = new Queue(QUEUE_NAMES.CLEANUP, {
+        connection: redisConnection,
+        defaultJobOptions: {
+            attempts: 1,
+            removeOnComplete: true
+        }
+    });
+}
 
 // Graceful shutdown
 async function closeQueues() {
-    await Promise.all([
-        emailQueue.close(),
-        loggingQueue.close(),
-        notificationQueue.close(),
-        cleanupQueue.close()
-    ]);
-    await redisConnection.quit();
+    if (!redisConnection) return;
+    
+    const queuesToClose = [];
+    if (emailQueue) queuesToClose.push(emailQueue.close());
+    if (loggingQueue) queuesToClose.push(loggingQueue.close());
+    if (notificationQueue) queuesToClose.push(notificationQueue.close());
+    if (cleanupQueue) queuesToClose.push(cleanupQueue.close());
+
+    await Promise.all(queuesToClose);
+    
+    if (redisConnection) {
+        await redisConnection.quit();
+    }
     console.log('All queues closed gracefully');
 }
 
@@ -110,6 +144,7 @@ module.exports = {
     notificationQueue,
     cleanupQueue,
     QUEUE_NAMES,
-    closeQueues
+    closeQueues,
+    isRedisAvailable: () => isRedisAvailable && redisConnection !== null
 };
 

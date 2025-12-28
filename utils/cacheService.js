@@ -1,28 +1,59 @@
 const IORedis = require('ioredis');
 
 // Create separate Redis connection for caching (or reuse existing)
-// Support both REDIS_URL (Railway) and individual variables
-let cacheClient;
+// Only connect if Redis is configured
+let cacheClient = null;
+let cacheAvailable = false;
 
-if (process.env.REDIS_URL) {
-    // Railway provides REDIS_URL as a connection string
-    // Parse URL and add db parameter for cache
-    const redisUrl = new URL(process.env.REDIS_URL);
-    cacheClient = new IORedis(process.env.REDIS_URL, {
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        db: 1 // Use different database for cache (0 is for BullMQ queues)
-    });
+// Check if Redis is configured
+const hasRedisConfig = process.env.REDIS_URL || process.env.REDIS_HOST;
+
+if (hasRedisConfig) {
+    if (process.env.REDIS_URL) {
+        // Redis URL connection string
+        cacheClient = new IORedis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            db: 1, // Use different database for cache (0 is for BullMQ queues)
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 50, 2000);
+                return delay;
+            }
+        });
+    } else if (process.env.REDIS_HOST) {
+        // Individual Redis variables
+        cacheClient = new IORedis({
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+            password: process.env.REDIS_PASSWORD || undefined,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            db: 1, // Use different database for cache (0 is for BullMQ queues)
+            retryStrategy: (times) => {
+                const delay = Math.min(times * 50, 2000);
+                return delay;
+            }
+        });
+    }
+
+    // Handle cache connection events
+    if (cacheClient) {
+        cacheClient.on('error', (error) => {
+            console.error('[Cache] Redis connection error:', error.message);
+            cacheAvailable = false;
+        });
+
+        cacheClient.on('connect', () => {
+            console.log('[Cache] Redis cache connected successfully');
+            cacheAvailable = true;
+        });
+
+        cacheClient.on('ready', () => {
+            cacheAvailable = true;
+        });
+    }
 } else {
-    // Fallback to individual variables
-    cacheClient = new IORedis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-        password: process.env.REDIS_PASSWORD || undefined,
-        maxRetriesPerRequest: null,
-        enableReadyCheck: false,
-        db: 1 // Use different database for cache (0 is for BullMQ queues)
-    });
+    console.log('[Cache] Redis not configured - running without cache');
 }
 
 // Cache TTL constants (in seconds)
@@ -62,6 +93,7 @@ function getCacheKey(prefix, ...parts) {
  * @returns {Promise<any|null>} Cached value or null
  */
 async function get(key) {
+    if (!cacheClient || !cacheAvailable) return null;
     try {
         const value = await cacheClient.get(key);
         if (value) {
@@ -82,6 +114,7 @@ async function get(key) {
  * @returns {Promise<boolean>} Success status
  */
 async function set(key, value, ttl) {
+    if (!cacheClient || !cacheAvailable) return false;
     try {
         const serialized = JSON.stringify(value);
         await cacheClient.setex(key, ttl, serialized);
@@ -98,6 +131,7 @@ async function set(key, value, ttl) {
  * @returns {Promise<number>} Number of keys deleted
  */
 async function del(...keys) {
+    if (!cacheClient || !cacheAvailable) return 0;
     try {
         if (keys.length === 0) return 0;
         const flatKeys = keys.flat();
@@ -114,6 +148,7 @@ async function del(...keys) {
  * @returns {Promise<number>} Number of keys deleted
  */
 async function delPattern(pattern) {
+    if (!cacheClient || !cacheAvailable) return 0;
     try {
         const keys = await cacheClient.keys(pattern);
         if (keys.length === 0) return 0;
@@ -267,6 +302,7 @@ async function invalidateAllBookings() {
  * Get cache statistics
  */
 async function getStats() {
+    if (!cacheClient || !cacheAvailable) return null;
     try {
         const info = await cacheClient.info('stats');
         const keyspace = await cacheClient.info('keyspace');
@@ -277,19 +313,12 @@ async function getStats() {
     }
 }
 
-// Handle Redis connection errors
-cacheClient.on('error', (error) => {
-    console.error('[Cache] Redis connection error:', error);
-});
-
-cacheClient.on('connect', () => {
-    console.log('[Cache] Redis cache connected successfully');
-});
-
 // Graceful shutdown
 async function closeCache() {
-    await cacheClient.quit();
-    console.log('[Cache] Cache connection closed');
+    if (cacheClient) {
+        await cacheClient.quit();
+        console.log('[Cache] Cache connection closed');
+    }
 }
 
 module.exports = {

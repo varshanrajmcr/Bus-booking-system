@@ -11,6 +11,10 @@ const { emailQueue, loggingQueue, notificationQueue, cleanupQueue } = require('.
  * @returns {Promise<string>} Job ID
  */
 async function queueBookingConfirmationEmail(customerEmail, bookingData) {
+    if (!emailQueue) {
+        console.warn('[Queue Service] Email queue not available (Redis not configured)');
+        return null;
+    }
     try {
         const job = await emailQueue.add(
             'booking-confirmation',
@@ -40,6 +44,10 @@ async function queueBookingConfirmationEmail(customerEmail, bookingData) {
  * @returns {Promise<string>} Job ID
  */
 async function queueBookingCancellationEmail(customerEmail, bookingData) {
+    if (!emailQueue) {
+        console.warn('[Queue Service] Email queue not available (Redis not configured)');
+        return null;
+    }
     try {
         const job = await emailQueue.add(
             'booking-cancellation',
@@ -71,6 +79,10 @@ async function queueBookingCancellationEmail(customerEmail, bookingData) {
  * @returns {Promise<string>} Job ID
  */
 async function queueCustomerActivityLog(customerId, action, details, req = null) {
+    if (!loggingQueue) {
+        // Silently skip - logging is optional
+        return null;
+    }
     try {
         const job = await loggingQueue.add(
             'customer-activity',
@@ -109,6 +121,10 @@ async function queueCustomerActivityLog(customerId, action, details, req = null)
  * @returns {Promise<string>} Job ID
  */
 async function queueBookingCreationLog(customerId, bookingId, bookingData, req = null) {
+    if (!loggingQueue) {
+        // Silently skip - logging is optional
+        return null;
+    }
     try {
         const job = await loggingQueue.add(
             'booking-creation',
@@ -149,6 +165,10 @@ async function queueBookingCreationLog(customerId, bookingId, bookingData, req =
  * @returns {Promise<string>} Job ID
  */
 async function queueBookingCancellationLog(customerId, bookingId, bookingData, req = null) {
+    if (!loggingQueue) {
+        // Silently skip - logging is optional
+        return null;
+    }
     try {
         const job = await loggingQueue.add(
             'booking-cancellation',
@@ -188,6 +208,10 @@ async function queueBookingCancellationLog(customerId, bookingId, bookingData, r
  * @returns {Promise<string>} Job ID
  */
 async function queueAdminNotification(adminId, notificationType, data) {
+    if (!notificationQueue) {
+        console.warn('[Queue Service] Notification queue not available (Redis not configured)');
+        return null;
+    }
     try {
         const job = await notificationQueue.add(
             'admin-notification',
@@ -216,6 +240,10 @@ async function queueAdminNotification(adminId, notificationType, data) {
  * @returns {Promise<string>} Job ID
  */
 async function scheduleCleanupTask(cleanupType, data, delay = 0) {
+    if (!cleanupQueue) {
+        console.warn('[Queue Service] Cleanup queue not available (Redis not configured)');
+        return null;
+    }
     try {
         const job = await cleanupQueue.add(
             'cleanup-task',
@@ -241,6 +269,9 @@ async function scheduleCleanupTask(cleanupType, data, delay = 0) {
  * @returns {Promise<Object>} Queue statistics
  */
 async function getQueueStats() {
+    if (!emailQueue || !loggingQueue || !notificationQueue || !cleanupQueue) {
+        return null;
+    }
     try {
         const [emailStats, loggingStats, notificationStats, cleanupStats] = await Promise.all([
             emailQueue.getJobCounts(),
