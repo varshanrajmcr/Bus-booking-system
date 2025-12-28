@@ -255,7 +255,8 @@ if (process.env.NODE_ENV === 'production') {
     app.use('/api', sseRouter);
     
     // All other routes serve React app (SPA fallback)
-    app.get('*', (req, res) => {
+    // Use '/*' instead of '*' for Express 5.x compatibility
+    app.get('/*', (req, res) => {
         res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
     });
 } else {
