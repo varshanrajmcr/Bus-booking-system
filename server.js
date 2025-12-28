@@ -4,6 +4,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const cors = require('cors');
 const { Pool } = require('pg');
 const path = require('path');
 const { testConnection } = require('./config/database');
@@ -195,6 +196,48 @@ app.use(async (req, res, next) => {
     }
     next();
 });
+
+// CORS configuration - Allow requests from Netlify and localhost
+app.use(cors({
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, Postman, or same-origin)
+        if (!origin) return callback(null, true);
+        
+        // List of allowed origins
+        const allowedOrigins = [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'https://stately-conkies-41d0db.netlify.app',
+            'https://6950cfc8d57c3ccaca1fb2e2--stately-conkies-41d0db.netlify.app',
+            /^https:\/\/.*\.netlify\.app$/, // Allow all Netlify preview deployments
+        ];
+        
+        // Check if origin matches allowed patterns
+        const isAllowed = allowedOrigins.some(allowed => {
+            if (typeof allowed === 'string') {
+                return origin === allowed;
+            } else if (allowed instanceof RegExp) {
+                return allowed.test(origin);
+            }
+            return false;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            // In production, you might want to be stricter
+            // For now, allow all origins in development
+            if (process.env.NODE_ENV === 'development') {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        }
+    },
+    credentials: true, // Allow cookies and session data
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
 // Middleware
 app.use(cookieParser());
