@@ -1,0 +1,15 @@
+# Root level Netlify configuration
+# This file is for when Netlify builds from the repository root
+
+[build]
+  base = "client"
+  command = "cd client && npm install && npm run build"
+  publish = "client/dist"
+
+# Redirect all routes to index.html for React Router (SPA)
+# This ensures React Router works correctly
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
