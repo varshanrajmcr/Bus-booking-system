@@ -255,8 +255,15 @@ if (process.env.NODE_ENV === 'production') {
     app.use('/api', sseRouter);
     
     // All other routes serve React app (SPA fallback)
-    // Use '/*' instead of '*' for Express 5.x compatibility
-    app.get('/*', (req, res) => {
+    // Use app.use() with middleware for Express 5.x compatibility
+    // Note: This is only needed if serving frontend from backend
+    // Since frontend is on Netlify, this route may not be necessary
+    app.use((req, res, next) => {
+        // Skip API routes
+        if (req.path.startsWith('/api')) {
+            return next();
+        }
+        // Serve React app for all other routes
         res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
     });
 } else {
