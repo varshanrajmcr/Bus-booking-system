@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Use Railway's PORT or default to 3000
 
 // Initialize database connection
 async function initializeDatabase() {
