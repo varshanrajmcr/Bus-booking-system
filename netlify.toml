@@ -3,8 +3,8 @@
 
 [build]
   base = "client"
-  command = "cd client && npm install && npm run build"
-  publish = "client/dist"
+  command = "npm install && npm run build"
+  publish = "dist"
 
 # Redirect all routes to index.html for React Router (SPA)
 # This ensures React Router works correctly
