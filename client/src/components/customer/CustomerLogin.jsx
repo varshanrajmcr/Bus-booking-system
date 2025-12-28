@@ -84,10 +84,16 @@ function CustomerLogin() {
 
       dispatch(setSuccessMessage(response.data.message || 'Login successful! Redirecting...'));
       setTimeout(() => {
-        navigate('/customer/dashboard');
+        navigate('/customer/dashboard', { replace: true });
       }, 1500);
     } catch (error) {
-      dispatch(setErrorMessage(error.response?.data?.error || 'An error occurred. Please try again.'));
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          (error.message?.includes('Network Error') || error.code === 'ERR_NETWORK' 
+                            ? 'Cannot connect to server. Please check your internet connection and ensure the backend is running.' 
+                            : 'An error occurred. Please try again.');
+      dispatch(setErrorMessage(errorMessage));
     }
   };
 

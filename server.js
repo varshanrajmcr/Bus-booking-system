@@ -210,6 +210,7 @@ app.use(cors({
             'http://localhost:3000',
             'https://stately-conkies-41d0db.netlify.app',
             'https://6950cfc8d57c3ccaca1fb2e2--stately-conkies-41d0db.netlify.app',
+            'https://journey18junction.netlify.app',
             /^https:\/\/.*\.netlify\.app$/, // Allow all Netlify preview deployments
         ];
         
