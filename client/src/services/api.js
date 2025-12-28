@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// Use environment variable for API URL in production, or '/api' for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   withCredentials: true, // Important for session cookies
   headers: {
     'Content-Type': 'application/json'
