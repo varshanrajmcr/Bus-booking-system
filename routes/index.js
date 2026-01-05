@@ -26,13 +26,17 @@ const {
     addBusValidators,
     updateBusValidators,
     deleteBusValidators,
+    getLocationsValidators,
     searchBusesHandler,
     getAdminBusesHandler,
     getAllBusesHandler,
+    getBusStatusesHandler,
+    getBusesByIdsHandler,
     getBusByIdHandler,
     addBusHandler,
     updateBusHandler,
-    deleteBusHandler
+    deleteBusHandler,
+    getLocationsHandler
 } = require('./busRoutes');
 
 // Import booking routes
@@ -44,10 +48,13 @@ const {
     getBookedSeatsHandler,
     createBookingHandler,
     getCustomerBookingsHandler,
+    getCustomerBookingsPaginatedHandler,
     getAdminBookingsHandler,
     getAllBookingsHandler,
     getBookingByIdHandler,
     cancelBookingHandler,
+    getBookingTrendsValidators,
+    getBookingTrendsHandler,
     trackFrontendActivityHandler
 } = require('./bookingRoutes');
 
@@ -101,6 +108,12 @@ router.post('/activities/track', requireCustomer, trackFrontendActivityHandler);
 
 // ========== BUS ROUTES ==========
 
+// Get location suggestions (autocomplete)
+// Request: Query params: ?q=chennai&type=from|to|all (optional)
+// Response (200): { "locations": ["Chennai", "Coimbatore", ...], "count": 2, "query": "chennai" }
+// Error (400): { "error": "Validation failed", "details": [...] }
+router.get('/buses/locations', getLocationsValidators, getLocationsHandler);
+
 // Search buses
 // Request: { "from": "Chennai", "to": "Bangalore", "date": "2024-12-25", "passengers": 2 } (passengers optional, default: 1)
 // Response (200): { "buses": [{ "busId": 1, "busName": "Volvo AC Sleeper", "from": "Chennai", "to": "Bangalore", "date": "2024-12-25", "departureTime": "22:00:00", "arrivalTime": "06:00:00", "duration": "8h 0m", "seaterPrice": "750.00", "sleeperPrice": "1200.00", "totalSeats": 32, "bookedSeats": [1, 2, 5], "bookedSeatsCount": 3, "availableSeatsForDate": 29, ... }], "count": 1 }
@@ -117,6 +130,16 @@ router.get('/buses/admin', requireAdmin, getAdminBusesHandler);
 // Request: None
 // Response (200): { "buses": [{ "busId": 1, "busName": "Volvo AC Sleeper", ... }] }
 router.get('/buses', getAllBusesHandler);
+
+// Get bus statuses by bus IDs (lightweight endpoint)
+// Request: { "busIds": [1, 2, 3] }
+// Response (200): { "statuses": { "1": "active", "2": "cancelled", "3": "active" } }
+router.post('/buses/statuses', getBusStatusesHandler);
+
+// Get buses by bus IDs (for customer bookings - only fetch buses they booked)
+// Request: { "busIds": [1, 2, 3] }
+// Response (200): { "buses": [{ "busId": 1, "busName": "...", ... }, ...] }
+router.post('/buses/by-ids', getBusesByIdsHandler);
 
 // Get bus by ID
 // Request: None
@@ -160,17 +183,28 @@ router.get('/bookings/seats/:busId/:date', getBookedSeatsValidators, getBookedSe
 // Error (403): { "error": "Customer access required" } | Error (400): { "error": "Seat(s) 3, 4 are already booked for this date. Please select different seats." } | Error (404): { "error": "Bus not found" }
 router.post('/bookings/create', requireCustomer, createBookingValidators, createBookingHandler);
 
-// Get all bookings for current customer (must come before /bookings/:bookingId)
-// Request: None (uses session - requires customer)
-// Response (200): { "bookings": [{ "bookingId": "BK1703520000000", "busId": 1, "customerId": 1, "adminId": 1, "date": "2024-12-25", "seats": [3, 4], "passengers": [...], "totalAmount": 1950, "status": "confirmed", "createdAt": "2024-12-20T10:00:00.000Z" }], "count": 1 }
+// Get paginated bookings for current customer (must come before /bookings/:bookingId)
+// Request: GET /api/bookings/customer/:page?filterBus=1&filterStatus=confirmed&sortOrder=latest
+// Response (200): { "bookings": [...], "pagination": { "currentPage": 1, "totalPages": 5, "totalCount": 25, "limit": 5 } }
 // Error (403): { "error": "Customer access required" }
-router.get('/bookings/customer', requireCustomer, getCustomerBookingsHandler);
+router.get('/bookings/customer/:page', requireCustomer, getCustomerBookingsPaginatedHandler);
+// Legacy route - redirects to page 1
+router.get('/bookings/customer', requireCustomer, (req, res) => {
+    const queryString = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
+    res.redirect(`/api/bookings/customer/1${queryString}`);
+});
 
 // Get all bookings for current admin (must come before /bookings/:bookingId)
 // Request: None (uses session - requires admin)
 // Response (200): { "bookings": [{ "bookingId": "BK1703520000000", "busId": 1, "customerId": 1, "adminId": 1, "date": "2024-12-25", "seats": [3, 4], "passengers": [...], "totalAmount": 1950, "status": "confirmed", "createdAt": "2024-12-20T10:00:00.000Z" }], "count": 1 }
 // Error (403): { "error": "Admin access required" }
 router.get('/bookings/admin', requireAdmin, getAdminBookingsHandler);
+
+// Get booking trends for current admin (must come before /bookings/:bookingId)
+// Request: Query params: ?period=overall|today|pastWeek|pastMonth&type=daily|monthly (optional)
+// Response (200): { "labels": ["2024-12-01", "2024-12-02", ...], "data": [5, 10, ...] }
+// Error (403): { "error": "Admin access required" }
+router.get('/bookings/admin/trends', requireAdmin, getBookingTrendsValidators, getBookingTrendsHandler);
 
 // Get all bookings (must come before /bookings/:bookingId)
 // Request: None

@@ -1,4 +1,4 @@
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { bookingStore, busStore, passengerStore, customerStore } = require('../utils/dataStore');
 const { handleValidationErrors } = require('../utils/validationHelper');
 const { logBookingCreation, logBookingCancellation } = require('../utils/customerLogger');
@@ -19,6 +19,9 @@ const {
     checkSeatsLocked,
     getLockedSeatsForBus
 } = require('../utils/seatLockService');
+const { Booking, Bus } = require('../models');
+const { Sequelize, Op } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 // Import SSE notification function (lazy load to avoid circular dependency)
 let notifyAdminDataChange = null;
@@ -437,6 +440,125 @@ const getCustomerBookingsHandler = async (req, res) => {
     }
 };
 
+// Paginated customer bookings handler
+const getCustomerBookingsPaginatedHandler = async (req, res) => {
+    try {
+        const customerId = req.session.userId;
+        const page = parseInt(req.params.page) || 1;
+        const limit = 5; // Fixed 5 items per page
+        const sortOrder = req.query.sortOrder || 'latest'; // 'latest' or 'older'
+        const filterBus = req.query.filterBus ? parseInt(req.query.filterBus) : null;
+        const filterStatus = req.query.filterStatus || null;
+        
+        // Get all bookings for this customer
+        const allCustomerBookings = await bookingStore.findByCustomerId(customerId);
+        
+        // Apply filters
+        let filteredBookings = [...allCustomerBookings];
+        
+        if (filterBus) {
+            filteredBookings = filteredBookings.filter(b => b.busId === filterBus);
+        }
+        
+        if (filterStatus) {
+            filteredBookings = filteredBookings.filter(b => b.status === filterStatus);
+        }
+        
+        // Apply sorting by travel date
+        filteredBookings.sort((a, b) => {
+            const dateA = a.date ? new Date(a.date.trim()) : new Date(0);
+            const dateB = b.date ? new Date(b.date.trim()) : new Date(0);
+            
+            if (sortOrder === 'latest') {
+                // Latest travel dates first (descending)
+                return dateB - dateA;
+            } else {
+                // Older travel dates first (ascending)
+                return dateA - dateB;
+            }
+        });
+        
+        // Calculate pagination
+        const totalCount = filteredBookings.length;
+        const totalPages = Math.ceil(totalCount / limit);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedBookings = filteredBookings.slice(startIndex, endIndex);
+        
+        // Get unique bus IDs from all bookings (for filter dropdown)
+        const uniqueBusIds = [...new Set(allCustomerBookings.map(b => b.busId).filter(Boolean))];
+        
+        // Get unique bus IDs from paginated bookings (for current page)
+        const busIdsForPage = [...new Set(paginatedBookings.map(b => b.busId).filter(Boolean))];
+        
+        // Fetch only required bus fields for current page bookings
+        // Fetch buses for current page (only busId, busName, from, to)
+        const buses = await Bus.findAll({
+            where: {
+                busId: { [Op.in]: busIdsForPage }
+            },
+            attributes: ['busId', 'busName', 'from', 'to'], // Only required fields for customer display
+            raw: true
+        });
+        
+        // Create a map of busId -> bus details
+        const busMap = {};
+        buses.forEach(bus => {
+            busMap[bus.busId] = {
+                busId: bus.busId,
+                busName: bus.busName,
+                from: bus.from,
+                to: bus.to
+            };
+        });
+        
+        // Attach minimal bus details to each booking
+        const bookingsWithBusDetails = paginatedBookings.map(booking => ({
+            ...booking,
+            bus: busMap[booking.busId] || null
+        }));
+        
+        // Prepare filterData - only include buses on page 1 to reduce payload
+        const filterData = {
+            uniqueBusIds: uniqueBusIds
+        };
+        
+        // Only fetch and include bus details for filter dropdown on page 1
+        if (page === 1) {
+            const allBusesForFilter = await Bus.findAll({
+                where: {
+                    busId: { [Op.in]: uniqueBusIds }
+                },
+                attributes: ['busId', 'busName', 'from', 'to'], // Only required fields
+                raw: true
+            });
+            
+            filterData.buses = allBusesForFilter.map(bus => ({
+                busId: bus.busId,
+                busName: bus.busName,
+                from: bus.from,
+                to: bus.to
+            }));
+        }
+        
+        res.json({
+            bookings: bookingsWithBusDetails,
+            pagination: {
+                currentPage: page,
+                totalPages: totalPages,
+                totalCount: totalCount,
+                limit: limit,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1
+            },
+            filterData: filterData
+        });
+    } catch (error) {
+        console.error('Error in getCustomerBookingsPaginatedHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 const getAdminBookingsHandler = async (req, res) => {
     try {
         const adminId = parseInt(req.session.userId);
@@ -623,19 +745,149 @@ const trackFrontendActivityHandler = async (req, res) => {
     }
 };
 
+// ========== TREND VALIDATORS ==========
+
+const getBookingTrendsValidators = [
+    query('period')
+        .optional()
+        .isIn(['overall', 'today', 'pastWeek', 'pastMonth'])
+        .withMessage('Period must be one of: overall, today, pastWeek, pastMonth'),
+    query('type')
+        .optional()
+        .isIn(['daily', 'monthly'])
+        .withMessage('Type must be one of: daily, monthly'),
+    handleValidationErrors
+];
+
+// ========== TREND HANDLER ==========
+
+const getBookingTrendsHandler = async (req, res) => {
+    try {
+        const adminId = parseInt(req.session.userId);
+        const { period = 'overall', type = 'daily' } = req.query;
+        
+        // Get all bus IDs for this admin
+        const adminBuses = await Bus.findAll({
+            where: { adminId: adminId },
+            attributes: ['busId'],
+            raw: true
+        });
+        
+        if (adminBuses.length === 0) {
+            return res.json({
+                labels: ['No Data'],
+                data: [0]
+            });
+        }
+        
+        const busIds = adminBuses.map(bus => bus.busId);
+        
+        // Build date filter based on period (filter by createdAt - booking creation time)
+        const whereClause = {
+            busId: { [Op.in]: busIds }
+        };
+        
+        if (period !== 'overall') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            today.setHours(0, 0, 0, 0);
+            
+            if (period === 'today') {
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                whereClause.createdAt = {
+                    [Op.gte]: today,
+                    [Op.lt]: tomorrow
+                };
+            } else if (period === 'pastWeek') {
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                whereClause.createdAt = {
+                    [Op.gte]: weekAgo,
+                    [Op.lt]: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Up to end of today
+                };
+            } else if (period === 'pastMonth') {
+                const monthAgo = new Date(today);
+                monthAgo.setDate(monthAgo.getDate() - 30);
+                whereClause.createdAt = {
+                    [Op.gte]: monthAgo,
+                    [Op.lt]: new Date(today.getTime() + 24 * 60 * 60 * 1000) // Up to end of today
+                };
+            }
+        }
+        
+        let trends;
+        
+        if (type === 'daily') {
+            // Daily trend - group by travel date (booking.date)
+            trends = await Booking.findAll({
+                where: whereClause,
+                attributes: [
+                    [sequelize.fn('DATE', sequelize.col('date')), 'date'],
+                    [sequelize.fn('COUNT', sequelize.col('booking_id')), 'count']
+                ],
+                group: [sequelize.fn('DATE', sequelize.col('date'))],
+                order: [[sequelize.fn('DATE', sequelize.col('date')), 'ASC']],
+                raw: true
+            });
+            
+            const labels = trends.map(t => {
+                // Format date as YYYY-MM-DD string
+                const dateStr = t.date instanceof Date ? t.date.toISOString().split('T')[0] : t.date;
+                return dateStr;
+            });
+            const data = trends.map(t => parseInt(t.count));
+            
+            return res.json({
+                labels: labels.length > 0 ? labels : ['No Data'],
+                data: data.length > 0 ? data : [0]
+            });
+        } else {
+            // Monthly trend - group by year-month from travel date
+            trends = await Booking.findAll({
+                where: whereClause,
+                attributes: [
+                    [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('date')), 'month'],
+                    [sequelize.fn('COUNT', sequelize.col('booking_id')), 'count']
+                ],
+                group: [sequelize.fn('DATE_TRUNC', 'month', sequelize.col('date'))],
+                order: [[sequelize.fn('DATE_TRUNC', 'month', sequelize.col('date')), 'ASC']],
+                raw: true
+            });
+            
+            const labels = trends.map(t => {
+                const monthDate = t.month instanceof Date ? t.month : new Date(t.month);
+                return monthDate.toLocaleString('default', { month: 'short', year: 'numeric' });
+            });
+            const data = trends.map(t => parseInt(t.count));
+            
+            return res.json({
+                labels: labels.length > 0 ? labels : ['No Data'],
+                data: data.length > 0 ? data : [0]
+            });
+        }
+    } catch (error) {
+        console.error('Error in getBookingTrendsHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     // Validators
     getBookedSeatsValidators,
     createBookingValidators,
     getBookingByIdValidators,
     cancelBookingValidators,
+    getBookingTrendsValidators,
     // Handlers
     getBookedSeatsHandler,
     createBookingHandler,
     getCustomerBookingsHandler,
+    getCustomerBookingsPaginatedHandler,
     getAdminBookingsHandler,
     getAllBookingsHandler,
     getBookingByIdHandler,
     cancelBookingHandler,
+    getBookingTrendsHandler,
     trackFrontendActivityHandler
 };

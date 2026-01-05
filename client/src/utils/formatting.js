@@ -2,11 +2,15 @@
 export function formatPrice(price) {
     const numPrice = parseFloat(price);
     if (isNaN(numPrice)) return price;
-    // If it's a whole number, return without decimals, otherwise return with 2 decimals
-    if (numPrice % 1 === 0) {
-        return numPrice.toString();
+    
+    // Round to 2 decimal places to handle floating point precision issues
+    const roundedPrice = Math.round(numPrice * 100) / 100;
+    
+    // If it's a whole number (or very close to it due to rounding), return without decimals
+    if (Math.abs(roundedPrice % 1) < 0.001) {
+        return Math.round(roundedPrice).toString();
     }
-    return numPrice.toFixed(2);
+    return roundedPrice.toFixed(2);
 }
 
 // Format time to HH:MM format

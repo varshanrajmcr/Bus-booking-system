@@ -427,8 +427,8 @@ function checkForCancelledBookings() {
         });
         
         if (adminCancelledBookings.length > 0) {
-            // Get list of booking IDs that have been notified (from localStorage)
-            const notifiedBookings = JSON.parse(localStorage.getItem('notifiedCancelledBookings') || '[]');
+            // Get list of booking IDs that have been notified (from sessionStorage)
+            const notifiedBookings = JSON.parse(sessionStorage.getItem('notifiedCancelledBookings') || '[]');
             
             // Find new cancellations (not yet notified)
             const newCancellations = adminCancelledBookings.filter(
@@ -441,7 +441,7 @@ function checkForCancelledBookings() {
                 
                 // Mark these bookings as notified
                 const updatedNotified = [...notifiedBookings, ...newCancellations.map(b => b.bookingId)];
-                localStorage.setItem('notifiedCancelledBookings', JSON.stringify(updatedNotified));
+                sessionStorage.setItem('notifiedCancelledBookings', JSON.stringify(updatedNotified));
             }
         }
     }

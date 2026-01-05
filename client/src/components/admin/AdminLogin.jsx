@@ -4,7 +4,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setUser, setUserName, setEnterpriseName } from '../../store/slices/authSlice';
 import { setErrorMessage, setSuccessMessage, clearMessages } from '../../store/slices/uiSlice';
 import { validateEmailFormat } from '../../utils/validation';
-import { storeTokens } from '../../utils/jwtUtils';
+import { storeTokens, getAccessToken } from '../../utils/jwtUtils';
+import { setActiveAdminSession, clearExplicitLogout, getActiveAdminSession } from '../../utils/browserSessionManager';
 import api from '../../services/api';
 import AnimatedBackground from '../common/AnimatedBackground';
 import AnimatedBus from '../common/AnimatedBus';
@@ -13,25 +14,12 @@ import LogoSection from '../common/LogoSection';
 function AdminLogin() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const [searchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();   // split the URL into search params
   const { errorMessage, successMessage } = useAppSelector((state) => state.ui);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    // Check if already logged in
-    const checkSession = async () => {
-      try {
-        const response = await api.get('/session?type=admin');
-        if (response.data.authenticated && response.data.user.userType === 'admin') {
-          navigate('/admin/dashboard');
-        }
-      } catch (error) {
-        console.error('Error checking session:', error);
-      }
-    };
-    checkSession();
-
     // Check for message in URL
     const message = searchParams.get('message');
     if (message) {
@@ -40,7 +28,7 @@ function AdminLogin() {
     return () => {
       dispatch(clearMessages());
     };
-  }, [navigate, searchParams, dispatch]);
+  }, [searchParams, dispatch]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,6 +57,27 @@ function AdminLogin() {
       return;
     }
 
+    // Check if user is already logged in
+    const activeAdminId = getActiveAdminSession();
+    const existingToken = getAccessToken();
+    if (activeAdminId && existingToken) {
+      // Check if the token is still valid
+      try {
+        const payload = JSON.parse(atob(existingToken.split('.')[1]));
+        const tokenUserId = payload.userId?.toString();
+        if (tokenUserId === activeAdminId) {
+          // Same user is already logged in - redirect to dashboard
+          dispatch(setSuccessMessage('You are already logged in. Redirecting to dashboard...'));
+          setTimeout(() => {
+            navigate('/admin/dashboard');
+          }, 1500);
+          return;
+        }
+      } catch (e) {
+        // Token invalid, proceed with login
+      }
+    }
+
     try {
       const response = await api.post('/admin/login', formData);
       
@@ -83,6 +92,9 @@ function AdminLogin() {
         if (response.data.user.enterpriseName) {
           dispatch(setEnterpriseName(response.data.user.enterpriseName));
         }
+        // Set browser-wide active admin session
+        setActiveAdminSession(response.data.user.adminId);
+        clearExplicitLogout();
       }
 
       dispatch(setSuccessMessage(response.data.message || 'Login successful! Redirecting...'));

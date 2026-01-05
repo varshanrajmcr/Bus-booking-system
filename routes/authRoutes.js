@@ -2,8 +2,8 @@ const { body } = require('express-validator');
 const { customerStore, adminStore, enterpriseStore } = require('../utils/dataStore');
 const { handleValidationErrors } = require('../utils/validationHelper');
 const sessionManager = require('../utils/sessionManager');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwtHelper');
-const { logLogin, logLogout, logAdminLogin, logAdminLogout } = require('../utils/customerLogger');
+const { generateAccessToken, generateRefreshToken, getTokenFromRequest, verifyAccessToken } = require('../utils/jwtHelper');
+const {logLogout, logAdminLogin, logAdminLogout } = require('../utils/customerLogger');
 
 // Admin registration key (in production, store this securely)
 const ADMIN_KEY = 'ADMIN123';
@@ -181,25 +181,59 @@ const customerLoginHandler = async (req, res) => {
         return res.status(401).json({ error: 'Invalid email or password' });
     }
     
-        // Terminate any existing sessions for this user
+        // Verify we have the correct customer data
         const customerIdValue = parseInt(customer.customerId || customer.id);
-        sessionManager.terminateUserSessions('customer', customerIdValue);
+        console.log(`[LOGIN] Customer login attempt - Email: ${email}, Found Customer ID: ${customerIdValue}, Name: ${customer.fullName}`);
+        
+        // Always invalidate any previous customer session to ensure single-session-per-browser
+        // This handles cases where:
+        // 1. Another customer was logged in (different userId)
+        // 2. Same customer logged in again (re-login)
+        // 3. Previous customer logged out but tokens still exist in other tabs
+        const activeCustomerId = sessionManager.getActiveBrowserSession('customer');
+        if (activeCustomerId) {
+            if (activeCustomerId !== customerIdValue) {
+                // Different customer is logged in - invalidate their session
+                console.log(`[LOGIN] Another customer (${activeCustomerId}) is logged in. Invalidating their session.`);
+                sessionManager.terminateUserSessions('customer', activeCustomerId);
+            } else {
+                // Same customer is already logged in - invalidate their existing session first
+                console.log(`[LOGIN] Same customer (${customerIdValue}) is already logged in. Invalidating existing session.`);
+                sessionManager.terminateUserSessions('customer', customerIdValue);
+            }
+        } else {
+            // No active browser session tracked, but there might be tokens in other tabs
+            // from a previous customer who logged out. We still need to ensure this new login
+            // gets a fresh token version by incrementing it.
+            console.log(`[LOGIN] No active customer session tracked, invalidating any existing tokens for customer ${customerIdValue}`);
+            sessionManager.terminateUserSessions('customer', customerIdValue);
+        }
+        
+        // Set this customer as active browser session
+        sessionManager.setActiveBrowserSession('customer', customerIdValue);
         
         // Generate new session token
         const sessionToken = sessionManager.setActiveSession('customer', customerIdValue);
         
-        // Generate JWT tokens
+        // Get current token version (after increment from terminateUserSessions)
+        const tokenVersion = sessionManager.getTokenVersion('customer', customerIdValue);
+        
+        // Generate JWT tokens with current token version
         const accessToken = generateAccessToken({
             userId: customerIdValue,
             userType: 'customer',
             email: customer.email,
             fullName: customer.fullName
-        });
+        }, tokenVersion);
         
         const refreshToken = generateRefreshToken({
             userId: customerIdValue,
             userType: 'customer'
-        });
+        }, tokenVersion);
+        
+        // Debug logging to verify correct customer data
+        console.log(`[LOGIN] Customer login - ID: ${customerIdValue}, Email: ${customer.email}, FullName: ${customer.fullName}`);
+        console.log(`[LOGIN] Generated tokens for customerId: ${customerIdValue}`);
         
         // Create/update session - ensure userId is an integer for consistent comparison
         req.session.userId = customerIdValue;
@@ -215,20 +249,8 @@ const customerLoginHandler = async (req, res) => {
                 return res.status(500).json({ error: 'Failed to create session' });
             }
     
-            // Set JWT tokens in HTTP-only cookies
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production', // Only send over HTTPS in production
-                sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
-            });
-            
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-            });
+            // JWT tokens are stored in sessionStorage on frontend (not in cookies)
+            // Tokens are sent via Authorization header
     
     res.json({
         message: 'Login successful',
@@ -313,26 +335,55 @@ const adminLoginHandler = async (req, res) => {
         return res.status(401).json({ error: 'Invalid email or password' });
     }
     
-        // Terminate any existing sessions for this user
         const adminIdValue = parseInt(admin.adminId || admin.id);
-        sessionManager.terminateUserSessions('admin', adminIdValue);
+        console.log(`[LOGIN] Admin login attempt - Email: ${email}, Found Admin ID: ${adminIdValue}, Name: ${admin.fullName}`);
+        
+        // Always invalidate any previous admin session to ensure single-session-per-browser
+        // This handles cases where:
+        // 1. Another admin was logged in (different userId)
+        // 2. Same admin logged in again (re-login)
+        // 3. Previous admin logged out but tokens still exist in other tabs
+        const activeAdminId = sessionManager.getActiveBrowserSession('admin');
+        if (activeAdminId) {
+            if (activeAdminId !== adminIdValue) {
+                // Different admin is logged in - invalidate their session
+                console.log(`[LOGIN] Another admin (${activeAdminId}) is logged in. Invalidating their session.`);
+                sessionManager.terminateUserSessions('admin', activeAdminId);
+            } else {
+                // Same admin is already logged in - invalidate their existing session first
+                console.log(`[LOGIN] Same admin (${adminIdValue}) is already logged in. Invalidating existing session.`);
+                sessionManager.terminateUserSessions('admin', adminIdValue);
+            }
+        } else {
+            // No active browser session tracked, but there might be tokens in other tabs
+            // from a previous admin who logged out. We still need to ensure this new login
+            // gets a fresh token version by incrementing it.
+            console.log(`[LOGIN] No active admin session tracked, invalidating any existing tokens for admin ${adminIdValue}`);
+            sessionManager.terminateUserSessions('admin', adminIdValue);
+        }
+        
+        // Set this admin as active browser session
+        sessionManager.setActiveBrowserSession('admin', adminIdValue);
         
         // Generate new session token
         const sessionToken = sessionManager.setActiveSession('admin', adminIdValue);
         
-        // Generate JWT tokens
+        // Get current token version (after increment from terminateUserSessions)
+        const tokenVersion = sessionManager.getTokenVersion('admin', adminIdValue);
+        
+        // Generate JWT tokens with current token version
         const accessToken = generateAccessToken({
             userId: adminIdValue,
             userType: 'admin',
             email: admin.email,
             fullName: admin.fullName,
             enterpriseName: admin.enterpriseName
-        });
+        }, tokenVersion);
         
         const refreshToken = generateRefreshToken({
             userId: adminIdValue,
             userType: 'admin'
-        });
+        }, tokenVersion);
     
         // Create session - ensure userId is an integer for consistent comparison
         req.session.userId = adminIdValue;
@@ -349,20 +400,8 @@ const adminLoginHandler = async (req, res) => {
                 return res.status(500).json({ error: 'Failed to create session' });
             }
     
-            // Set JWT tokens in HTTP-only cookies
-            res.cookie('accessToken', accessToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 24 * 60 * 60 * 1000 // 24 hours
-            });
-            
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-            });
+            // JWT tokens are stored in sessionStorage on frontend (not in cookies)
+            // Tokens are sent via Authorization header
             
             // Log admin login
             logAdminLogin(adminIdValue, admin.email, req);
@@ -397,7 +436,107 @@ const getSessionHandler = async (req, res) => {
                                 (req.path && req.path.includes('/admin') ? 'admin' : null) ||
                                 (req.path && req.path.includes('/customer') ? 'customer' : null);
         
-        if (req.session.userId) {
+        // First, check JWT token if present (takes precedence over session)
+        const jwtToken = getTokenFromRequest(req);
+        
+        if (jwtToken) {
+            const decoded = verifyAccessToken(jwtToken);
+            
+            // If JWT token is invalid or version mismatch, session is terminated
+            if (decoded && decoded.invalid) {
+                // Clear session and tokens
+                if (req.session) {
+                    req.session.destroy();
+                }
+                res.clearCookie('connect.sid');
+                return res.json({
+                    authenticated: false,
+                    sessionTerminated: true,
+                    error: 'Session terminated',
+                    message: decoded.error || 'Another user has logged into this account. Please login again.'
+                });
+            }
+            
+            // If JWT token is valid, use it for authentication
+            if (decoded && !decoded.expired && !decoded.invalid) {
+                // Check if user type matches expected type
+                if (expectedUserType && decoded.userType !== expectedUserType) {
+                    return res.json({
+                        authenticated: false,
+                        message: 'Session mismatch - please login again'
+                    });
+                }
+                
+                // Get user from database to return full user info
+                let user = null;
+                if (decoded.userType === 'customer') {
+                    user = await customerStore.findById(decoded.userId);
+                } else if (decoded.userType === 'admin') {
+                    user = await adminStore.findById(decoded.userId);
+                }
+                
+                if (!user) {
+                    return res.json({
+                        authenticated: false,
+                        message: 'User not found'
+                    });
+                }
+                
+                // Update session with JWT token data for backward compatibility
+                if (!req.session) {
+                    req.session = {};
+                }
+                req.session.userId = decoded.userId;
+                req.session.userType = decoded.userType;
+                req.session.email = decoded.email;
+                req.session.fullName = decoded.fullName;
+                if (decoded.enterpriseName) {
+                    req.session.enterpriseName = decoded.enterpriseName;
+                }
+                
+                const userResponse = {
+                    authenticated: true,
+                    user: {
+                        fullName: decoded.fullName,
+                        email: decoded.email,
+                        userType: decoded.userType
+                    }
+                };
+                
+                if (decoded.userType === 'customer') {
+                    userResponse.user.customerId = decoded.userId;
+                } else if (decoded.userType === 'admin') {
+                    userResponse.user.adminId = decoded.userId;
+                    if (decoded.enterpriseName) {
+                        userResponse.user.enterpriseName = decoded.enterpriseName;
+                    }
+                }
+                
+                return res.json(userResponse);
+            }
+        }
+        
+        // Fallback to session-based authentication
+        // But first check if JWT token exists and is invalid (version mismatch)
+        // This ensures old tabs with invalid JWT tokens are logged out even if session cookie is valid
+        if (jwtToken) {
+            const decoded = verifyAccessToken(jwtToken);
+            if (decoded && decoded.invalid) {
+                // JWT token is invalid (version mismatch) - terminate session
+                if (req.session) {
+                    req.session.destroy();
+                }
+                res.clearCookie('connect.sid');
+                return res.json({
+                    authenticated: false,
+                    sessionTerminated: true,
+                    error: 'Session terminated',
+                    message: decoded.error || 'Another user has logged into this account. Please login again.'
+                });
+            }
+        }
+        
+        if (req.session && req.session.userId) {
             // Verify user still exists in database
             let user = null;
             
@@ -464,6 +603,49 @@ const getSessionHandler = async (req, res) => {
                     }
                 }
                 
+                // If no JWT token was provided but session is valid, generate new tokens
+                // This allows new tabs to get tokens when accessing dashboard directly
+                if (!jwtToken) {
+                    const tokenVersion = sessionManager.getTokenVersion(req.session.userType, req.session.userId);
+                    
+                    if (req.session.userType === 'customer') {
+                        const accessToken = generateAccessToken({
+                            userId: req.session.userId,
+                            userType: 'customer',
+                            email: req.session.email,
+                            fullName: req.session.fullName
+                        }, tokenVersion);
+                        
+                        const refreshToken = generateRefreshToken({
+                            userId: req.session.userId,
+                            userType: 'customer'
+                        }, tokenVersion);
+                        
+                        userResponse.tokens = {
+                            accessToken,
+                            refreshToken
+                        };
+                    } else if (req.session.userType === 'admin') {
+                        const accessToken = generateAccessToken({
+                            userId: req.session.userId,
+                            userType: 'admin',
+                            email: req.session.email,
+                            fullName: req.session.fullName,
+                            enterpriseName: req.session.enterpriseName || null
+                        }, tokenVersion);
+                        
+                        const refreshToken = generateRefreshToken({
+                            userId: req.session.userId,
+                            userType: 'admin'
+                        }, tokenVersion);
+                        
+                        userResponse.tokens = {
+                            accessToken,
+                            refreshToken
+                        };
+                    }
+                }
+                
                 res.json(userResponse);
             } else {
                 // User not found in database, destroy session
@@ -497,9 +679,14 @@ const logoutHandler = (req, res) => {
         }
     }
     
-    // Remove active session from session manager
+    // Invalidate all sessions and tokens for this user
+    // Increment token version instead of removing it - this invalidates all tokens in all tabs
     if (req.session && req.session.userId && req.session.userType) {
         sessionManager.removeActiveSession(req.session.userType, req.session.userId);
+        // Increment token version to invalidate all JWT tokens in all tabs
+        sessionManager.incrementTokenVersion(req.session.userType, req.session.userId);
+        // Clear browser-wide session tracking
+        sessionManager.clearActiveBrowserSession(req.session.userType);
     }
     
     req.session.destroy((err) => {
@@ -508,8 +695,7 @@ const logoutHandler = (req, res) => {
             return res.status(500).json({ error: 'Error logging out' });
         }
         res.clearCookie('connect.sid');
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
+        // JWT tokens are stored in sessionStorage on frontend, cleared by frontend on logout
         res.json({ message: 'Logout successful' });
     });
 };
@@ -545,34 +731,25 @@ const refreshTokenHandler = async (req, res) => {
             return res.status(401).json({ error: 'User not found' });
         }
         
-        // Generate new tokens
+        // Get current token version (keep same version for refresh, don't increment)
+        const tokenVersion = sessionManager.getTokenVersion(decoded.userType, decoded.userId);
+        
+        // Generate new tokens with current token version
         const newAccessToken = generateAccessToken({
             userId: decoded.userId,
             userType: decoded.userType,
             email: user.email,
             fullName: user.fullName,
             enterpriseName: user.enterpriseName || null
-        });
+        }, tokenVersion);
         
         const newRefreshToken = generateRefreshToken({
             userId: decoded.userId,
             userType: decoded.userType
-        });
+        }, tokenVersion);
         
-        // Set new tokens in cookies
-        res.cookie('accessToken', newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 24 * 60 * 60 * 1000 // 24 hours
-        });
-        
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-        });
+        // JWT tokens are stored in sessionStorage on frontend (not in cookies)
+        // Tokens are sent via Authorization header
         
         res.json({
             message: 'Token refreshed successfully',

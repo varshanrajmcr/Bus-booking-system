@@ -1,6 +1,7 @@
 /**
  * JWT Token Management Utility for Frontend
  * Handles storing, retrieving, and sending JWT tokens
+ * Uses sessionStorage instead of localStorage so each tab has its own tokens
  */
 
 const JWT_STORAGE_KEY = 'jwt_access_token';
@@ -13,10 +14,10 @@ const REFRESH_STORAGE_KEY = 'jwt_refresh_token';
  */
 function storeTokens(accessToken, refreshToken) {
     if (accessToken) {
-        localStorage.setItem(JWT_STORAGE_KEY, accessToken);
+        sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
     }
     if (refreshToken) {
-        localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
+        sessionStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
     }
 }
 
@@ -25,7 +26,7 @@ function storeTokens(accessToken, refreshToken) {
  * @returns {string|null} Access token or null
  */
 function getAccessToken() {
-    return localStorage.getItem(JWT_STORAGE_KEY);
+    return sessionStorage.getItem(JWT_STORAGE_KEY);
 }
 
 /**
@@ -33,15 +34,15 @@ function getAccessToken() {
  * @returns {string|null} Refresh token or null
  */
 function getRefreshToken() {
-    return localStorage.getItem(REFRESH_STORAGE_KEY);
+    return sessionStorage.getItem(REFRESH_STORAGE_KEY);
 }
 
 /**
  * Clear all tokens from storage
  */
 function clearTokens() {
-    localStorage.removeItem(JWT_STORAGE_KEY);
-    localStorage.removeItem(REFRESH_STORAGE_KEY);
+    sessionStorage.removeItem(JWT_STORAGE_KEY);
+    sessionStorage.removeItem(REFRESH_STORAGE_KEY);
 }
 
 /**

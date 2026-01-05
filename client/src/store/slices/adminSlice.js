@@ -28,6 +28,9 @@ const initialState = {
   filteredBookings: [],
   busFilters: { date: '' },
   bookingFilters: { bus: '', date: '', status: '' },
+  bookingSortOrder: 'latest', // 'latest' or 'older'
+  overviewTimePeriod: 'overall', // 'overall', 'today', 'pastWeek', 'pastMonth'
+  bookingTrendType: 'daily', // 'daily' or 'monthly'
   eventSource: null
 };
 
@@ -80,6 +83,15 @@ const adminSlice = createSlice({
     setBookingFilters: (state, action) => {
       state.bookingFilters = { ...state.bookingFilters, ...action.payload };
     },
+    setBookingSortOrder: (state, action) => {
+      state.bookingSortOrder = action.payload;
+    },
+    setOverviewTimePeriod: (state, action) => {
+      state.overviewTimePeriod = action.payload;
+    },
+    setBookingTrendType: (state, action) => {
+      state.bookingTrendType = action.payload;
+    },
     setEventSource: (state, action) => {
       state.eventSource = action.payload;
     },
@@ -108,6 +120,9 @@ export const {
   setFilteredBookings,
   setBusFilters,
   setBookingFilters,
+  setBookingSortOrder,
+  setOverviewTimePeriod,
+  setBookingTrendType,
   setEventSource,
   updateBus,
   removeBus

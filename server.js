@@ -106,10 +106,79 @@ app.use(session({
 
 // Middleware to verify session user exists in database and check session validity
 app.use(async (req, res, next) => {
+    // First, check JWT token if present (takes precedence)
+    const { getTokenFromRequest, verifyAccessToken } = require('./utils/jwtHelper');
+    const jwtToken = getTokenFromRequest(req);
+    let jwtUser = null; // Track if we have a valid JWT user
+    
+    if (jwtToken) {
+        const decoded = verifyAccessToken(jwtToken);
+        
+        // If JWT token is invalid (version mismatch), terminate session immediately
+        if (decoded && decoded.invalid) {
+            const userType = decoded.userType || req.session?.userType || 'customer';
+            console.log(`JWT token invalid for ${userType}:${decoded.userId || 'unknown'} - ${decoded.error}`);
+            
+            // For API requests, return 401 with message
+            if (req.path.startsWith('/api/')) {
+                if (req.session) {
+                    req.session.destroy((err) => {
+                        if (err) console.error('Session destroy error:', err);
+                    });
+                }
+                res.clearCookie('connect.sid');
+                return res.status(401).json({ 
+                    error: 'Session terminated',
+                    message: decoded.error || 'Another user has logged into this account. Please login again.',
+                    sessionTerminated: true
+                });
+            }
+            // For page requests, redirect to login
+            if (req.session) {
+                req.session.destroy((err) => {
+                    if (err) console.error('Session destroy error:', err);
+                });
+            }
+            res.clearCookie('connect.sid');
+            return res.redirect(`/${userType}/login.html?message=${encodeURIComponent(decoded.error || 'Another user has logged into this account. Please login again.')}`);
+        }
+        
+        // If JWT token is valid, use it as the source of truth and update session
+        if (decoded && !decoded.expired && !decoded.invalid) {
+            jwtUser = {
+                userId: decoded.userId,
+                userType: decoded.userType,
+                email: decoded.email,
+                fullName: decoded.fullName,
+                enterpriseName: decoded.enterpriseName
+            };
+            
+            // Update session to match JWT token (JWT is source of truth)
+            // This handles the case where session cookie was overwritten by another user's login
+            if (!req.session) {
+                req.session = {};
+            }
+            req.session.userId = decoded.userId;
+            req.session.userType = decoded.userType;
+            req.session.email = decoded.email;
+            req.session.fullName = decoded.fullName;
+            if (decoded.enterpriseName) {
+                req.session.enterpriseName = decoded.enterpriseName;
+            }
+            // Get the current session token for this user from sessionManager
+            const sessionToken = sessionManager.getActiveSessionToken(decoded.userType, decoded.userId);
+            if (sessionToken) {
+                req.session.sessionToken = sessionToken;
+            }
+        }
+    }
+    
     if (req.session && req.session.userId) {
         try {
-            // Check if session token is valid (single-session-per-account)
-            if (req.session.userType && req.session.sessionToken) {
+            // Only validate session token if we don't have a valid JWT (JWT takes precedence)
+            // If we have a valid JWT, we already updated the session above
+            if (!jwtUser && req.session.userType && req.session.sessionToken) {
+                // Check if session token is valid (single-session-per-account)
                 const isValid = sessionManager.isSessionValid(
                     req.session.userType,
                     req.session.userId,
@@ -230,10 +299,6 @@ app.use(cors({
         const allowedOrigins = [
             'http://localhost:5173',
             'http://localhost:3000',
-            'https://stately-conkies-41d0db.netlify.app',
-            'https://6950cfc8d57c3ccaca1fb2e2--stately-conkies-41d0db.netlify.app',
-            'https://journey18junction.netlify.app',
-            /^https:\/\/.*\.netlify\.app$/, // Allow all Netlify preview deployments
         ];
         
         // Check if origin matches allowed patterns

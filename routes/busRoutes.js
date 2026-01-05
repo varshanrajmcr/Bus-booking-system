@@ -1,8 +1,8 @@
-const { body, param } = require('express-validator');
+const { body, param, query } = require('express-validator');
 const { busStore, bookingStore, enterpriseStore } = require('../utils/dataStore');
 const { handleValidationErrors } = require('../utils/validationHelper');
 const { Bus } = require('../models');
-const { logBusSearch, logBusCreation, logBusUpdate, logBusCancellation } = require('../utils/customerLogger');
+const { logBusCreation, logBusUpdate, logBusCancellation } = require('../utils/customerLogger');
 const {
     getBusSearch, setBusSearch,
     getBusesByAdmin, setBusesByAdmin, invalidateBusesByAdmin,
@@ -204,24 +204,49 @@ const deleteBusValidators = [
     handleValidationErrors
 ];
 
+const getLocationsValidators = [
+    query('q')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 100 }).withMessage('Query must be between 1 and 100 characters'),
+    query('type')
+        .optional()
+        .isIn(['from', 'to', 'all']).withMessage('Type must be one of: from, to, all'),
+    handleValidationErrors
+];
+
 // ========== HANDLERS ==========
 
 const searchBusesHandler = async (req, res) => {
     try {
         const { from, to, date, passengers } = req.body;
         const passengersCount = passengers || 1;
+        const currentTime = new Date(); // Current time for filtering already departed buses
         
         // Check cache first
         const cachedResult = await getBusSearch(from, to, date);
         if (cachedResult) {
             console.log('[Cache] Bus search cache HIT:', { from, to, date });
-            // Filter cached results: exclude cancelled and inactive buses, and filter by passenger count
+            // Filter cached results: exclude cancelled, inactive buses, already departed buses, and filter by passenger count
             const filteredBuses = cachedResult.buses.filter(bus => {
                 const busStatus = bus.status || 'active';
                 // Only show active buses (exclude cancelled and inactive)
                 if (busStatus !== 'active') {
                     return false;
                 }
+                
+                // Check if departure time has passed
+                if (bus.date && bus.departureTime) {
+                    const [year, month, day] = bus.date.trim().split('-').map(Number);
+                    const [hours, minutes] = bus.departureTime.trim().split(':').map(Number);
+                    const departureDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                    
+                    // Exclude buses where departure time has already passed
+                    if (departureDateTime < currentTime) {
+                        return false;
+                    }
+                }
+                
                 // Filter by passenger count
                 return bus.availableSeatsForDate >= passengersCount;
             });
@@ -236,7 +261,26 @@ const searchBusesHandler = async (req, res) => {
         
         // Get buses from database (only active buses for search)
         const allBuses = await busStore.getAll();
-        const buses = allBuses.filter(bus => (bus.status || 'active') === 'active');
+        
+        // Filter: only active buses that haven't departed yet
+        const buses = allBuses.filter(bus => {
+            const busStatus = bus.status || 'active';
+            if (busStatus !== 'active') return false;
+            
+            // Check if departure time has passed
+            if (bus.date && bus.departureTime) {
+                const [year, month, day] = bus.date.trim().split('-').map(Number);
+                const [hours, minutes] = bus.departureTime.trim().split(':').map(Number);
+                const departureDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                
+                // Exclude buses where departure time has already passed
+                if (departureDateTime < currentTime) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
     
         // Filter buses based on search criteria (use totalSeats for initial filter)
     const filteredBuses = buses.filter(bus => {
@@ -290,10 +334,22 @@ const searchBusesHandler = async (req, res) => {
             };
         }));
         
-        // Filter buses by actual availability (not just totalSeats)
-        const busesWithEnoughSeats = busesWithBookedSeats.filter(bus => 
-            bus.availableSeatsForDate >= passengersCount
-        );
+        // Filter buses by actual availability (not just totalSeats) and exclude already departed buses
+        const busesWithEnoughSeats = busesWithBookedSeats.filter(bus => {
+            // Check if departure time has passed
+            if (bus.date && bus.departureTime) {
+                const [year, month, day] = bus.date.trim().split('-').map(Number);
+                const [hours, minutes] = bus.departureTime.trim().split(':').map(Number);
+                const departureDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                
+                // Exclude buses where departure time has already passed
+                if (departureDateTime < currentTime) {
+                    return false;
+                }
+            }
+            
+            return bus.availableSeatsForDate >= passengersCount;
+        });
         
         // Check if no single bus has enough seats, but multiple buses together might
         const totalAvailableSeats = busesWithBookedSeats.reduce((sum, bus) => 
@@ -346,10 +402,21 @@ const searchBusesHandler = async (req, res) => {
             response.buses = busesWithBookedSeats;
         }
         
-        // Cache the result (cache all buses with availability, not filtered by passenger count)
+        // Filter out already departed buses before caching
+        const busesForCache = busesWithBookedSeats.filter(bus => {
+            if (bus.date && bus.departureTime) {
+                const [year, month, day] = bus.date.trim().split('-').map(Number);
+                const [hours, minutes] = bus.departureTime.trim().split(':').map(Number);
+                const departureDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                return departureDateTime >= currentTime;
+            }
+            return true;
+        });
+        
+        // Cache the result (cache all buses with availability, not filtered by passenger count, but excluding already departed)
         await setBusSearch(from, to, date, {
-            buses: busesWithBookedSeats,
-            count: busesWithBookedSeats.length
+            buses: busesForCache,
+            count: busesForCache.length
         });
         
         res.json(response);
@@ -373,8 +440,9 @@ const getAdminBusesHandler = async (req, res) => {
         console.log('[Cache] Admin buses cache MISS for admin:', adminId);
         
         const allBuses = await busStore.findByAdminId(adminId);
-        // Filter to show only active buses (cancelled buses are hidden from admin's bus list)
-        const buses = allBuses.filter(bus => (bus.status || 'active') === 'active');
+        // Include all buses (active, inactive, and cancelled) for admin dashboard
+        // This ensures cancelled buses are available for displaying booking details
+        const buses = allBuses;
         
         // Cache the result
         await setBusesByAdmin(adminId, buses);
@@ -392,6 +460,77 @@ const getAllBusesHandler = async (req, res) => {
         res.json({ buses });
     } catch (error) {
         console.error('Error in getAllBusesHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get bus statuses by bus IDs (lightweight endpoint for checking cancelled buses)
+const getBusStatusesHandler = async (req, res) => {
+    try {
+        const { busIds } = req.body;
+        
+        if (!Array.isArray(busIds) || busIds.length === 0) {
+            return res.json({ statuses: {} });
+        }
+        
+        // Convert to integers and filter out invalid IDs
+        const validBusIds = busIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+        
+        if (validBusIds.length === 0) {
+            return res.json({ statuses: {} });
+        }
+        
+        // Fetch only busId and status fields using Sequelize (efficient query)
+        const { Op } = require('sequelize');
+        const buses = await Bus.findAll({
+            where: {
+                busId: { [Op.in]: validBusIds }
+            },
+            attributes: ['busId', 'status'],
+            raw: true
+        });
+        
+        // Create a map of busId -> status
+        const statuses = {};
+        buses.forEach(bus => {
+            statuses[bus.busId] = bus.status || 'active';
+        });
+        
+        res.json({ statuses });
+    } catch (error) {
+        console.error('Error in getBusStatusesHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Get buses by bus IDs (for customer bookings - only fetch buses they booked)
+const getBusesByIdsHandler = async (req, res) => {
+    try {
+        const { busIds } = req.body;
+        
+        if (!Array.isArray(busIds) || busIds.length === 0) {
+            return res.json({ buses: [] });
+        }
+        
+        // Convert to integers and filter out invalid IDs
+        const validBusIds = busIds.map(id => parseInt(id)).filter(id => !isNaN(id) && id > 0);
+        
+        if (validBusIds.length === 0) {
+            return res.json({ buses: [] });
+        }
+        
+        // Fetch buses by IDs using Sequelize
+        const { Op } = require('sequelize');
+        const buses = await Bus.findAll({
+            where: {
+                busId: { [Op.in]: validBusIds }
+            },
+            raw: true
+        });
+        
+        res.json({ buses });
+    } catch (error) {
+        console.error('Error in getBusesByIdsHandler:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -441,8 +580,8 @@ const addBusHandler = async (req, res) => {
             departureTime: departureTime.trim(),
             arrivalTime: arrivalTime.trim(),
             duration: duration.trim(),
-            seaterPrice: parseFloat(seaterPrice),
-            sleeperPrice: parseFloat(sleeperPrice),
+            seaterPrice: Math.round(parseFloat(seaterPrice) * 100) / 100,
+            sleeperPrice: Math.round(parseFloat(sleeperPrice) * 100) / 100,
             availableSeats: parseInt(totalSeats), // Initialize with total seats
             busType: busType.trim(),
             totalSeats: parseInt(totalSeats),
@@ -529,8 +668,8 @@ const updateBusHandler = async (req, res) => {
         }
         
         // Validate price relationship
-        const finalSeaterPrice = seaterPrice !== undefined ? parseFloat(seaterPrice) : bus.seaterPrice;
-        const finalSleeperPrice = sleeperPrice !== undefined ? parseFloat(sleeperPrice) : bus.sleeperPrice;
+        const finalSeaterPrice = seaterPrice !== undefined ? Math.round(parseFloat(seaterPrice) * 100) / 100 : bus.seaterPrice;
+        const finalSleeperPrice = sleeperPrice !== undefined ? Math.round(parseFloat(sleeperPrice) * 100) / 100 : bus.sleeperPrice;
         if (finalSleeperPrice <= finalSeaterPrice) {
             return res.status(400).json({ error: 'Sleeper price must be higher than seater price' });
         }
@@ -544,8 +683,8 @@ const updateBusHandler = async (req, res) => {
         if (departureTime !== undefined) updates.departureTime = departureTime.trim();
         if (arrivalTime !== undefined) updates.arrivalTime = arrivalTime.trim();
         if (duration !== undefined) updates.duration = duration.trim();
-        if (seaterPrice !== undefined) updates.seaterPrice = parseFloat(seaterPrice);
-        if (sleeperPrice !== undefined) updates.sleeperPrice = parseFloat(sleeperPrice);
+        if (seaterPrice !== undefined) updates.seaterPrice = Math.round(parseFloat(seaterPrice) * 100) / 100;
+        if (sleeperPrice !== undefined) updates.sleeperPrice = Math.round(parseFloat(sleeperPrice) * 100) / 100;
         if (busType !== undefined) updates.busType = busType.trim();
         if (totalSeats !== undefined) {
             updates.totalSeats = parseInt(totalSeats);
@@ -653,6 +792,73 @@ const deleteBusHandler = async (req, res) => {
     }
 };
 
+// Get location suggestions (autocomplete)
+const getLocationsHandler = async (req, res) => {
+    try {
+        const { q = '', type = 'all' } = req.query;
+        const query = q.trim().toLowerCase();
+        
+        // Get all active buses
+        const allBuses = await busStore.getAll();
+        const activeBuses = allBuses.filter(bus => (bus.status || 'active') === 'active');
+        
+        // Collect unique locations
+        const locationsSet = new Set();
+        
+        activeBuses.forEach(bus => {
+            if (type === 'from' || type === 'all') {
+                if (bus.from) {
+                    locationsSet.add(bus.from.trim());
+                }
+            }
+            if (type === 'to' || type === 'all') {
+                if (bus.to) {
+                    locationsSet.add(bus.to.trim());
+                }
+            }
+        });
+        
+        // Convert to array and filter by query if provided
+        let locations = Array.from(locationsSet);
+        
+        if (query.length > 0) {
+            locations = locations.filter(location => 
+                location.toLowerCase().includes(query)
+            );
+        }
+        
+        // Sort alphabetically
+        locations.sort((a, b) => a.localeCompare(b));
+        
+        // Limit results to 20 for performance
+        locations = locations.slice(0, 20);
+        
+        res.json({
+            locations,
+            count: locations.length,
+            query: q
+        });
+    } catch (error) {
+        console.error('Error in getLocationsHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Sync all bus locations to OpenSearch (admin only, for initial setup and manual sync)
+const syncLocationsHandler = async (req, res) => {
+    try {
+        const result = await syncAllLocations();
+        res.json({
+            message: 'Locations synced to OpenSearch successfully',
+            indexed: result.indexed,
+            errors: result.errors
+        });
+    } catch (error) {
+        console.error('Error in syncLocationsHandler:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 module.exports = {
     // Validators
     searchBusesValidators,
@@ -660,12 +866,16 @@ module.exports = {
     addBusValidators,
     updateBusValidators,
     deleteBusValidators,
+    getLocationsValidators,
     // Handlers
     searchBusesHandler,
     getAdminBusesHandler,
     getAllBusesHandler,
+    getBusStatusesHandler,
+    getBusesByIdsHandler,
     getBusByIdHandler,
     addBusHandler,
     updateBusHandler,
-    deleteBusHandler
+    deleteBusHandler,
+    getLocationsHandler
 };

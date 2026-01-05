@@ -1,18 +1,46 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import api from '../../services/api';
-import { formatPrice, formatTime } from '../../utils/formatting';
+import { formatPrice } from '../../utils/formatting';
+import { redirectToLogin } from '../../utils/navigation';
 import Navbar from '../common/Navbar';
 import '../../styles/dashboard.css';
 
 function Bookings() {
   const navigate = useNavigate();
+  const { page } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [userName, setUserName] = useState('Welcome, User');
   const [bookings, setBookings] = useState([]);
   const [allBuses, setAllBuses] = useState([]);
-  const [filteredBookings, setFilteredBookings] = useState([]);
-  const [filterBus, setFilterBus] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterBus, setFilterBus] = useState(() => {
+    try {
+      return searchParams.get('filterBus') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [filterStatus, setFilterStatus] = useState(() => {
+    try {
+      return searchParams.get('filterStatus') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [sortOrder, setSortOrder] = useState(() => {
+    try {
+      return searchParams.get('sortOrder') || 'latest';
+    } catch {
+      return 'latest';
+    }
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [uniqueBusIds, setUniqueBusIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isInitialMount = useRef(true);
+  const itemsPerPage = 5;
+  const currentPage = parseInt(page) || 1;
 
   useEffect(() => {
     // Add dashboard-page class to body
@@ -24,15 +52,17 @@ function Bookings() {
         const sessionResponse = await api.get('/session?type=customer');
         if (sessionResponse.data.authenticated && sessionResponse.data.user.userType === 'customer') {
           setUserName(`Welcome, ${sessionResponse.data.user.fullName || 'User'}`);
-          await loadAllBuses();
-          await loadBookings();
+          // Redirect to page 1 if no page in URL
+          if (!page) {
+            navigate('/customer/bookings/1', { replace: true });
+            return;
+          }
         } else {
-          alert('Please login to continue');
-          navigate('/customer/login');
+          redirectToLogin('customer', { showAlert: true, navigate });
         }
       } catch (error) {
         console.error('Error checking session:', error);
-        navigate('/customer/login');
+        redirectToLogin('customer', { navigate });
       }
     };
 
@@ -41,61 +71,104 @@ function Bookings() {
     return () => {
       body.classList.remove('dashboard-page');
     };
-  }, [navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const loadAllBuses = async () => {
+  const loadBookings = async (pageNum = currentPage) => {
     try {
-      const response = await api.get('/buses');
-      if (response.status === 200) {
-        setAllBuses(response.data.buses || []);
-      }
-    } catch (error) {
-      console.error('Error loading buses:', error);
-    }
-  };
-
-  const loadBookings = async () => {
-    try {
-      const response = await api.get('/bookings/customer');
+      setLoading(true);
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (filterBus) params.append('filterBus', filterBus);
+      if (filterStatus) params.append('filterStatus', filterStatus);
+      if (sortOrder) params.append('sortOrder', sortOrder);
+      
+      const queryString = params.toString();
+      const url = `/bookings/customer/${pageNum}${queryString ? '?' + queryString : ''}`;
+      
+      const response = await api.get(url);
       if (response.status === 200) {
         const bookingsList = response.data.bookings || [];
-        bookingsList.sort((a, b) => {
-          const dateA = new Date(a.date || 0);
-          const dateB = new Date(b.date || 0);
-          return dateA - dateB;
-        });
+        const pagination = response.data.pagination || {};
+        const filterData = response.data.filterData || {};
+        
         setBookings(bookingsList);
-        setFilteredBookings(bookingsList);
-        populateBusFilter(bookingsList);
+        setTotalPages(pagination.totalPages || 1);
+        setTotalCount(pagination.totalCount || 0);
+        
+        // Set unique bus IDs from filter data
+        if (filterData.uniqueBusIds) {
+          setUniqueBusIds(filterData.uniqueBusIds);
+        }
+        
+        // Set bus details for filter dropdown (only on page 1 to avoid unnecessary updates)
+        if (pageNum === 1 && filterData.buses) {
+          setAllBuses(filterData.buses);
+        }
       }
     } catch (error) {
       console.error('Error loading bookings:', error);
+      setBookings([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const populateBusFilter = (bookingsList) => {
-    const uniqueBusIds = [...new Set(bookingsList.map(b => b.busId))];
-    // Filter dropdown will be populated in render
-  };
-
-  const applyFilters = () => {
-    let filtered = [...bookings];
-
-    if (filterBus) {
-      filtered = filtered.filter(b => b.busId === parseInt(filterBus));
+  // Load bookings when page changes
+  useEffect(() => {
+    if (!page) {
+      // If no page, redirect to page 1
+      navigate('/customer/bookings/1', { replace: true });
+      return;
     }
-
-    if (filterStatus) {
-      filtered = filtered.filter(b => b.status === filterStatus);
+    
+    // Only load if we have a valid page number
+    const pageNum = parseInt(page);
+    if (pageNum && pageNum > 0) {
+      loadBookings(pageNum);
     }
-
-    setFilteredBookings(filtered);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+  
+  // Navigate to page 1 when filters change (if not already on page 1)
+  useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    
+    if (!page) return;
+    
+    // If we're not on page 1 and filters change, navigate to page 1
+    if (currentPage !== 1) {
+      const params = new URLSearchParams();
+      if (filterBus) params.set('filterBus', filterBus);
+      if (filterStatus) params.set('filterStatus', filterStatus);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      navigate(`/customer/bookings/1?${params.toString()}`, { replace: false });
+    } else {
+      // Update search params when on page 1 (only if they actually changed)
+      const params = new URLSearchParams();
+      if (filterBus) params.set('filterBus', filterBus);
+      if (filterStatus) params.set('filterStatus', filterStatus);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      const newParams = params.toString();
+      const currentParams = searchParams.toString();
+      if (newParams !== currentParams) {
+        setSearchParams(params, { replace: true });
+        // Reload bookings with new filters
+        loadBookings(1);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterBus, filterStatus, sortOrder]);
 
   const clearFilters = () => {
     setFilterBus('');
     setFilterStatus('');
-    setFilteredBookings(bookings);
+    setSortOrder('latest');
+    navigate('/customer/bookings/1');
   };
 
   const cancelBooking = async (bookingId) => {
@@ -107,7 +180,8 @@ function Bookings() {
       const response = await api.put(`/bookings/${bookingId}/cancel`);
       if (response.status === 200) {
         alert('Booking cancelled successfully');
-        await loadBookings();
+        // Reload current page after cancellation
+        await loadBookings(currentPage);
       }
     } catch (error) {
       alert(error.response?.data?.error || 'Error cancelling booking');
@@ -115,14 +189,95 @@ function Bookings() {
   };
 
   const getBusDetails = (busId) => {
-    return allBuses.find(bus => (bus.busId || bus.id) === busId);
+    // First try to find in current bookings (bus details are included in each booking)
+    const booking = bookings.find(b => b.busId === busId);
+    if (booking && booking.bus) {
+      return booking.bus;
+    }
+    // Fallback to allBuses (for filter dropdown)
+    return allBuses.find(bus => bus.busId === busId);
   };
 
-  useEffect(() => {
-    applyFilters();
-  }, [filterBus, filterStatus, bookings]);
+  // Smart pagination helper - shows ellipsis for large page counts
+  const getPageNumbers = (currentPage, totalPages) => {
+    const pages = [];
+    const maxVisible = 7; // Maximum number of page buttons to show
+    
+    if (totalPages <= maxVisible) {
+      // If total pages is less than maxVisible, show all pages
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+      
+      if (currentPage <= 3) {
+        // Near the beginning: show 1, 2, 3, 4, 5, ..., last
+        for (let i = 2; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end: show 1, ..., last-4, last-3, last-2, last-1, last
+        pages.push('ellipsis');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // In the middle: show 1, ..., current-1, current, current+1, ..., last
+        pages.push('ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('ellipsis');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
-  const uniqueBusIds = [...new Set(bookings.map(b => b.busId))];
+  // Memoize bus filter options - only recalculate when dependencies change
+  const busFilterOptions = useMemo(() => {
+    return uniqueBusIds
+      .map(busId => {
+        // First try to find in current bookings
+        const booking = bookings.find(b => b.busId === busId);
+        if (booking && booking.bus) {
+          return {
+            busId,
+            label: `${booking.bus.busName} - ${booking.bus.from} → ${booking.bus.to}`
+          };
+        }
+        // Fallback to allBuses
+        const bus = allBuses.find(bus => bus.busId === busId);
+        if (bus) {
+          return {
+            busId,
+            label: `${bus.busName} - ${bus.from} → ${bus.to}`
+          };
+        }
+        return null;
+      })
+      .filter(Boolean); // Remove null entries
+  }, [uniqueBusIds, bookings, allBuses]);
+
+  // Memoize page numbers calculation
+  const pageNumbers = useMemo(() => {
+    return getPageNumbers(currentPage, totalPages);
+  }, [currentPage, totalPages]);
+
+  const handlePageChange = (newPage) => {
+    const params = new URLSearchParams();
+    if (filterBus) params.set('filterBus', filterBus);
+    if (filterStatus) params.set('filterStatus', filterStatus);
+    if (sortOrder) params.set('sortOrder', sortOrder);
+    const queryString = params.toString();
+    navigate(`/customer/bookings/${newPage}${queryString ? '?' + queryString : ''}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <>
@@ -159,17 +314,20 @@ function Bookings() {
               <select
                 id="filterBus"
                 value={filterBus}
-                onChange={(e) => setFilterBus(e.target.value)}
+                onChange={(e) => {
+                  if (!loading) {
+                    setFilterBus(e.target.value);
+                  }
+                }}
+                disabled={loading}
+                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
               >
                 <option value="">All Buses</option>
-                {uniqueBusIds.map(busId => {
-                  const bus = getBusDetails(busId);
-                  return bus ? (
-                    <option key={busId} value={busId}>
-                      {bus.busName} - {bus.from} → {bus.to}
-                    </option>
-                  ) : null;
-                })}
+                {busFilterOptions.map(bus => (
+                  <option key={bus.busId} value={bus.busId}>
+                    {bus.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="filter-group">
@@ -177,7 +335,13 @@ function Bookings() {
               <select
                 id="filterStatus"
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  if (!loading) {
+                    setFilterStatus(e.target.value);
+                  }
+                }}
+                disabled={loading}
+                style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
               >
                 <option value="">All Status</option>
                 <option value="confirmed">Confirmed</option>
@@ -185,12 +349,36 @@ function Bookings() {
               </select>
             </div>
             <div className="filter-group">
+              <label htmlFor="sortBookings">Sort Order</label>
+              <button 
+                type="button" 
+                className="btn-filter" 
+                onClick={() => {
+                  if (!loading) {
+                    setSortOrder(sortOrder === 'latest' ? 'older' : 'latest');
+                  }
+                }}
+                disabled={loading}
+                style={{ 
+                  width: '100%', 
+                  padding: '8px',
+                  opacity: loading ? 0.6 : 1,
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {sortOrder === 'latest' ? '📅 Latest First' : '📅 Older First'}
+              </button>
+            </div>
+            <div className="filter-group">
               <label>&nbsp;</label>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button type="button" className="btn-filter" onClick={applyFilters}>
-                  Apply Filters
-                </button>
-                <button type="button" className="btn-clear" onClick={clearFilters}>
+                <button 
+                  type="button" 
+                  className="btn-clear" 
+                  onClick={clearFilters}
+                  disabled={loading}
+                  style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                >
                   Clear
                 </button>
               </div>
@@ -199,14 +387,21 @@ function Bookings() {
         </div>
 
         <div className="bookings-list">
-          {filteredBookings.length === 0 ? (
+          {loading ? (
+            <div className="no-data">
+              <div className="no-data-icon">⏳</div>
+              <p>Loading bookings...</p>
+            </div>
+          ) : bookings.length === 0 ? (
             <div className="no-data">
               <div className="no-data-icon">📋</div>
               <p>No bookings found</p>
             </div>
           ) : (
-            filteredBookings.map(booking => {
-              const bus = getBusDetails(booking.busId);
+            <>
+              {bookings.map(booking => {
+              // Bus details are now included directly in the booking object
+              const bus = booking.bus;
               return (
                 <div key={booking.bookingId} className="booking-card">
                   <div className="booking-header">
@@ -285,7 +480,103 @@ function Bookings() {
                   )}
                 </div>
               );
-            })
+              })}
+              
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginTop: '30px',
+                  flexWrap: 'wrap'
+                }}>
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === 1 ? '#ccc' : '#97d700',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Previous
+                  </button>
+                  
+                  {pageNumbers.map((page, index) => {
+                    if (page === 'ellipsis') {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          style={{
+                            padding: '8px 4px',
+                            color: '#666',
+                            fontSize: '14px',
+                            fontWeight: 'normal'
+                          }}
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        style={{
+                          padding: '8px 16px',
+                          background: currentPage === page ? '#97d700' : '#f0f0f0',
+                          color: currentPage === page ? 'white' : '#333',
+                          border: '1px solid #ddd',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: currentPage === page ? 'bold' : 'normal',
+                          minWidth: '40px'
+                        }}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '8px 16px',
+                      background: currentPage === totalPages ? '#ccc' : '#97d700',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+              
+              {totalPages > 1 && (
+                <div style={{
+                  textAlign: 'center',
+                  marginTop: '10px',
+                  color: '#666',
+                  fontSize: '14px'
+                }}>
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} bookings
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

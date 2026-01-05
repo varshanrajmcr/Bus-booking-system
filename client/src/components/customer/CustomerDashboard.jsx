@@ -14,8 +14,11 @@ import {
   clearSearchResults
 } from '../../store/slices/busesSlice';
 import api from '../../services/api';
+import { storeTokens } from '../../utils/jwtUtils';
 import { validateLocation, validateTravelDate, validatePassengers } from '../../utils/validation';
 import { formatPrice, formatTime } from '../../utils/formatting';
+import { redirectToLogin } from '../../utils/navigation';
+import { setActiveCustomerSession } from '../../utils/browserSessionManager';
 import Navbar from '../common/Navbar';
 import '../../styles/dashboard.css';
 
@@ -35,6 +38,18 @@ function CustomerDashboard() {
   const [toLocation, setToLocation] = useState(searchParams.to || '');
   const [travelDate, setTravelDate] = useState(searchParams.date || '');
   const [passengers, setPassengers] = useState(searchParams.passengers || 1);
+  
+  // Autocomplete state
+  const [fromSuggestions, setFromSuggestions] = useState([]);
+  const [toSuggestions, setToSuggestions] = useState([]);
+  const [showFromSuggestions, setShowFromSuggestions] = useState(false);
+  const [showToSuggestions, setShowToSuggestions] = useState(false);
+  const [fromFocused, setFromFocused] = useState(false);
+  const [toFocused, setToFocused] = useState(false);
+  
+  // Refs for debouncing
+  const fromDebounceTimer = useRef(null);
+  const toDebounceTimer = useRef(null);
 
   useEffect(() => {
     // Add dashboard-page class to body
@@ -52,160 +67,123 @@ function CustomerDashboard() {
     const checkSession = async () => {
       try {
         const response = await api.get('/session?type=customer');
-        if (response.data.sessionTerminated || response.data.error === 'Session terminated') {
-          alert(response.data.message || 'Another user has logged into this account. Please login again.');
-          navigate('/customer/login');
-          return;
-        }
+        // Session termination is handled by API interceptor - no need to check here
         
         if (response.data.authenticated && response.data.user.userType === 'customer') {
+          // Store tokens if provided (e.g., when accessing dashboard directly via session cookie)
+          if (response.data.tokens) {
+            storeTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
+            console.log('[CustomerDashboard] Stored tokens from session endpoint');
+          }
+          
+          // Ensure customer session is stored in localStorage (persist it)
+          if (response.data.user.customerId) {
+            setActiveCustomerSession(response.data.user.customerId);
+            console.log('[CustomerDashboard] Customer session stored in localStorage:', response.data.user.customerId);
+          }
+          
           dispatch(setUser(response.data.user));
           dispatch(setUserName(`Welcome, ${response.data.user.fullName || 'User'}`));
-          await checkForCancelledBookings();
         } else {
-          alert('Please login to continue');
-          navigate('/customer/login');
+          redirectToLogin('customer', { showAlert: true, navigate });
         }
       } catch (error) {
+        // Session termination errors are handled by API interceptor
         console.error('Error checking session:', error);
-        navigate('/customer/login');
+        // Only navigate if it's not a session termination (which interceptor handles)
+        if (!error.response?.data?.sessionTerminated) {
+          redirectToLogin('customer', { navigate });
+        }
       }
     };
     checkSession();
     
     return () => {
       body.classList.remove('dashboard-page');
+      // Clear debounce timers on unmount
+      if (fromDebounceTimer.current) {
+        clearTimeout(fromDebounceTimer.current);
+      }
+      if (toDebounceTimer.current) {
+        clearTimeout(toDebounceTimer.current);
+      }
     };
   }, [navigate]);
-
-  const checkForCancelledBookings = async () => {
+  
+  // Debounced function to fetch location suggestions
+  const fetchLocationSuggestions = async (query, type, setSuggestions) => {
+    if (query.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    
     try {
-      const [bookingsResponse, busesResponse] = await Promise.all([
-        api.get('/bookings/customer'),
-        api.get('/buses')
-      ]);
+      const params = new URLSearchParams({
+        q: query.trim(),
+        type: type
+      });
+      const response = await api.get(`/buses/locations?${params.toString()}`);
       
-      if (bookingsResponse.data.sessionTerminated || bookingsResponse.data.error === 'Session terminated') {
-        alert(bookingsResponse.data.message || 'Another user has logged into this account. Please login again.');
-        navigate('/customer/login');
-        return;
-      }
-      
-      if (bookingsResponse.status === 200 && bookingsResponse.data.bookings && busesResponse.status === 200 && busesResponse.data.buses) {
-        const cancelledBookings = bookingsResponse.data.bookings.filter(booking => booking.status === 'cancelled');
-        
-        const busStatusMap = {};
-        busesResponse.data.buses.forEach(bus => {
-          busStatusMap[bus.busId || bus.id] = bus.status || 'active';
-        });
-        
-        const adminCancelledBookings = cancelledBookings.filter(booking => {
-          const busStatus = busStatusMap[booking.busId];
-          return busStatus === 'cancelled';
-        });
-        
-        if (adminCancelledBookings.length > 0) {
-          const notifiedBookings = JSON.parse(localStorage.getItem('notifiedCancelledBookings') || '[]');
-          const newCancellations = adminCancelledBookings.filter(
-            booking => !notifiedBookings.includes(booking.bookingId)
-          );
-          
-          if (newCancellations.length > 0) {
-            showCancellationNotification(newCancellations);
-            const updatedNotified = [...notifiedBookings, ...newCancellations.map(b => b.bookingId)];
-            localStorage.setItem('notifiedCancelledBookings', JSON.stringify(updatedNotified));
-          }
-        }
+      if (response.status === 200 && response.data.locations) {
+        setSuggestions(response.data.locations);
       }
     } catch (error) {
-      console.error('Error checking for cancelled bookings:', error);
+      console.error('Error fetching location suggestions:', error);
+      setSuggestions([]);
     }
   };
-
-  const showCancellationNotification = (cancelledBookings) => {
-    const existingNotification = document.getElementById('cancellationNotification');
-    if (existingNotification) {
-      existingNotification.remove();
+  
+  // Handle from location input with debouncing
+  const handleFromLocationChange = (e) => {
+    const value = e.target.value;
+    setFromLocation(value);
+    setShowFromSuggestions(true);
+    
+    // Clear previous timer
+    if (fromDebounceTimer.current) {
+      clearTimeout(fromDebounceTimer.current);
     }
     
-    const notification = document.createElement('div');
-    notification.id = 'cancellationNotification';
-    notification.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-      color: white;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      animation: slideDown 0.5s ease-out;
-    `;
+    // Set new timer for debouncing (300ms delay)
+    fromDebounceTimer.current = setTimeout(() => {
+      fetchLocationSuggestions(value, 'from', setFromSuggestions);
+    }, 300);
+  };
+  
+  // Handle to location input with debouncing
+  const handleToLocationChange = (e) => {
+    const value = e.target.value;
+    setToLocation(value);
+    setShowToSuggestions(true);
     
-    const message = cancelledBookings.length === 1
-      ? `⚠️ Important: Your bus booking (${cancelledBookings[0].bookingId}) has been cancelled by the operator. Please check your bookings for details.`
-      : `⚠️ Important: ${cancelledBookings.length} of your bus bookings have been cancelled by the operator. Please check your bookings for details.`;
-    
-    notification.innerHTML = `
-      <div style="flex: 1; display: flex; align-items: center; gap: 15px;">
-        <span style="font-size: 24px;">⚠️</span>
-        <div>
-          <strong style="font-size: 16px; display: block; margin-bottom: 5px;">Bus Cancellation Notice</strong>
-          <span style="font-size: 14px;">${message}</span>
-        </div>
-      </div>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <a href="/customer/bookings" style="background: white; color: #ff6b6b; padding: 10px 20px; border-radius: 5px; text-decoration: none; font-weight: bold; transition: transform 0.2s;">View Bookings</a>
-        <button onclick="this.parentElement.parentElement.remove(); document.body.style.paddingTop = '';" style="background: rgba(255,255,255,0.2); color: white; border: 2px solid white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 18px; font-weight: bold; transition: background 0.2s;">×</button>
-      </div>
-    `;
-    
-    // Add click handler for the link
-    const link = notification.querySelector('a');
-    if (link) {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        navigate('/customer/bookings');
-      });
-      link.addEventListener('mouseover', (e) => {
-        e.target.style.transform = 'scale(1.05)';
-      });
-      link.addEventListener('mouseout', (e) => {
-        e.target.style.transform = 'scale(1)';
-      });
+    // Clear previous timer
+    if (toDebounceTimer.current) {
+      clearTimeout(toDebounceTimer.current);
     }
     
-    if (!document.getElementById('notificationStyles')) {
-      const style = document.createElement('style');
-      style.id = 'notificationStyles';
-      style.textContent = `
-        @keyframes slideDown {
-          from {
-            transform: translateY(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-      `;
-      document.head.appendChild(style);
+    // Set new timer for debouncing (300ms delay)
+    toDebounceTimer.current = setTimeout(() => {
+      fetchLocationSuggestions(value, 'to', setToSuggestions);
+    }, 300);
+  };
+  
+  // Handle suggestion selection
+  const handleFromSuggestionSelect = (location) => {
+    setFromLocation(location);
+    setShowFromSuggestions(false);
+    setFromFocused(false);
+    if (fromDebounceTimer.current) {
+      clearTimeout(fromDebounceTimer.current);
     }
-    
-    document.body.style.paddingTop = '80px';
-    document.body.insertBefore(notification, document.body.firstChild);
-    
-    setTimeout(() => {
-      if (notification.parentElement) {
-        notification.remove();
-        document.body.style.paddingTop = '';
-      }
-    }, 30000);
+  };
+  
+  const handleToSuggestionSelect = (location) => {
+    setToLocation(location);
+    setShowToSuggestions(false);
+    setToFocused(false);
+    if (toDebounceTimer.current) {
+      clearTimeout(toDebounceTimer.current);
+    }
   };
 
   const handleSearch = async (e) => {
@@ -235,7 +213,7 @@ function CustomerDashboard() {
     // Prevent duplicate search with same parameters, but allow refresh after 30 seconds
     const now = Date.now();
     const timeSinceLastSearch = lastSearchTime ? (now - lastSearchTime) : Infinity;
-    const REFRESH_INTERVAL = 30000; // 30 seconds - allow refresh after this time
+    const REFRESH_INTERVAL = 10000; // 30 seconds - allow refresh after this time
 
     // Check if any currently displayed bus is cancelled (admin might have cancelled it)
     const hasCancelledBus = buses.some(bus => bus.status === 'cancelled');
@@ -339,7 +317,7 @@ function CustomerDashboard() {
           <h1>Search Buses</h1>
           <form id="searchForm" className="search-form" onSubmit={handleSearch}>
             <div className="form-row">
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label htmlFor="fromLocation">From</label>
                 <input
                   type="text"
@@ -347,11 +325,60 @@ function CustomerDashboard() {
                   name="fromLocation"
                   placeholder="Enter departure city"
                   value={fromLocation}
-                  onChange={(e) => setFromLocation(e.target.value)}
+                  onChange={handleFromLocationChange}
+                  onFocus={() => {
+                    setFromFocused(true);
+                    if (fromLocation.trim().length > 0 && fromSuggestions.length > 0) {
+                      setShowFromSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay hiding suggestions to allow click on suggestion
+                    setTimeout(() => {
+                      setShowFromSuggestions(false);
+                      setFromFocused(false);
+                    }, 200);
+                  }}
+                  autoComplete="off"
                   required
                 />
+                {showFromSuggestions && fromFocused && fromSuggestions.length > 0 && (
+                  <ul className="autocomplete-suggestions" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#fff',
+                    border: '1px solid #ddd',
+                    borderTop: 'none',
+                    borderRadius: '0 0 4px 4px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    zIndex: 1000,
+                    listStyle: 'none',
+                    margin: 0,
+                    padding: 0,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    {fromSuggestions.map((location, index) => (
+                      <li
+                        key={index}
+                        onClick={() => handleFromSuggestionSelect(location)}
+                        style={{
+                          padding: '10px 15px',
+                          cursor: 'pointer',
+                          borderBottom: index < fromSuggestions.length - 1 ? '1px solid #eee' : 'none'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                      >
+                        {location}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label htmlFor="toLocation">To</label>
                 <input
                   type="text"
@@ -359,9 +386,58 @@ function CustomerDashboard() {
                   name="toLocation"
                   placeholder="Enter destination city"
                   value={toLocation}
-                  onChange={(e) => setToLocation(e.target.value)}
+                  onChange={handleToLocationChange}
+                  onFocus={() => {
+                    setToFocused(true);
+                    if (toLocation.trim().length > 0 && toSuggestions.length > 0) {
+                      setShowToSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay hiding suggestions to allow click on suggestion
+                    setTimeout(() => {
+                      setShowToSuggestions(false);
+                      setToFocused(false);
+                    }, 200);
+                  }}
+                  autoComplete="off"
                   required
                 />
+                {showToSuggestions && toFocused && toSuggestions.length > 0 && (
+                  <ul className="autocomplete-suggestions" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#fff',
+                    border: '1px solid #ddd',
+                    borderTop: 'none',
+                    borderRadius: '0 0 4px 4px',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    zIndex: 1000,
+                    listStyle: 'none',
+                    margin: 0,
+                    padding: 0,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    {toSuggestions.map((location, index) => (
+                      <li
+                        key={index}
+                        onClick={() => handleToSuggestionSelect(location)}
+                        style={{
+                          padding: '10px 15px',
+                          cursor: 'pointer',
+                          borderBottom: index < toSuggestions.length - 1 ? '1px solid #eee' : 'none'
+                        }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                      >
+                        {location}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
             <div className="form-row">
@@ -464,7 +540,27 @@ function CustomerDashboard() {
 
         <div id="busResults" className="bus-results">
           {buses
-            .filter(bus => (bus.status || 'active') === 'active') // Filter out cancelled/inactive buses
+            .filter(bus => {
+              // Filter out cancelled/inactive buses
+              if ((bus.status || 'active') !== 'active') {
+                return false;
+              }
+              
+              // Filter out buses that have already departed
+              if (bus.date && bus.departureTime) {
+                const [year, month, day] = bus.date.trim().split('-').map(Number);
+                const [hours, minutes] = bus.departureTime.trim().split(':').map(Number);
+                const departureDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                const now = new Date();
+                
+                // Exclude buses where departure time has already passed
+                if (departureDateTime < now) {
+                  return false;
+                }
+              }
+              
+              return true;
+            })
             .map(bus => (
             <div key={bus.busId || bus.id} className="bus-card">
               <div className="bus-info">

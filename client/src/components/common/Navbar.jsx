@@ -1,18 +1,28 @@
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useAppDispatch } from '../../store/hooks';
+import { logout } from '../../store/slices/authSlice';
+import { clearTokens } from '../../utils/jwtUtils';
+import { setExplicitLogout } from '../../utils/browserSessionManager';
 import api from '../../services/api';
 
 function Navbar({ userName, showBookingsLink = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const dispatch = useAppDispatch();
   const isAdmin = location.pathname.startsWith('/admin');
 
   const handleLogout = async () => {
     try {
       await api.post('/logout');
-      navigate(isAdmin ? '/admin/login' : '/customer/login');
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      // Set explicit logout flag to prevent auto-redirect
+      setExplicitLogout(isAdmin ? 'admin' : 'customer');
+      // Clear JWT tokens and Redux state
+      clearTokens();
+      dispatch(logout());
       navigate(isAdmin ? '/admin/login' : '/customer/login');
     }
   };

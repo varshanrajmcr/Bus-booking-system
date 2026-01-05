@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Check if session was terminated
         if (sessionData.sessionTerminated || (sessionData.error === 'Session terminated')) {
-            alert(sessionData.message || 'Another user has logged into this account. Please login again.');
+            alert(sessionData.message || 'Session terminated. Please login again.');
             window.location.href = '/admin/login.html';
             return;
         }
@@ -495,7 +495,7 @@ async function loadBookings(retryCount = 0) {
         } else {
             // Check if session was terminated
             if (data.sessionTerminated || (data.error === 'Session terminated')) {
-                alert(data.message || 'Another user has logged into this account. Please login again.');
+                alert(data.message || 'Session terminated. Please login again.');
                 window.location.href = '/admin/login.html';
                 return;
             }
@@ -514,7 +514,7 @@ async function loadBookings(retryCount = 0) {
                     
                     // Check if session was terminated
                     if (sessionData.sessionTerminated || (sessionData.error === 'Session terminated')) {
-                        alert(sessionData.message || 'Another user has logged into this account. Please login again.');
+                        alert(sessionData.message || 'Session terminated. Please login again.');
                         window.location.href = '/admin/login.html';
                         return;
                     }

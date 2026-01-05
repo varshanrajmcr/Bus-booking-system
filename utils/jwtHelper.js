@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const sessionManager = require('./sessionManager');
 
 // JWT secret key (in production, use environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || 'bus-booking-jwt-secret-key-change-in-production';
@@ -11,16 +12,23 @@ const REFRESH_TOKEN_EXPIRY = '7d'; // 7 days
 /**
  * Generate access token (short-lived)
  * @param {Object} payload - User data to encode in token
+ * @param {number} tokenVersion - Token version to include (optional, will be fetched if not provided)
  * @returns {string} JWT access token
  */
-function generateAccessToken(payload) {
+function generateAccessToken(payload, tokenVersion = null) {
+    // Get token version if not provided
+    if (tokenVersion === null) {
+        tokenVersion = sessionManager.getTokenVersion(payload.userType, payload.userId);
+    }
+    
     const tokenPayload = {
         userId: payload.userId,
         userType: payload.userType,
         email: payload.email,
         fullName: payload.fullName,
         enterpriseName: payload.enterpriseName || null,
-        type: 'access'
+        type: 'access',
+        tokenVersion: tokenVersion
     };
     
     return jwt.sign(tokenPayload, JWT_SECRET, {
@@ -33,13 +41,20 @@ function generateAccessToken(payload) {
 /**
  * Generate refresh token (long-lived)
  * @param {Object} payload - User data to encode in token
+ * @param {number} tokenVersion - Token version to include (optional, will be fetched if not provided)
  * @returns {string} JWT refresh token
  */
-function generateRefreshToken(payload) {
+function generateRefreshToken(payload, tokenVersion = null) {
+    // Get token version if not provided
+    if (tokenVersion === null) {
+        tokenVersion = sessionManager.getTokenVersion(payload.userType, payload.userId);
+    }
+    
     const tokenPayload = {
         userId: payload.userId,
         userType: payload.userType,
-        type: 'refresh'
+        type: 'refresh',
+        tokenVersion: tokenVersion
     };
     
     return jwt.sign(tokenPayload, JWT_REFRESH_SECRET, {
@@ -63,6 +78,24 @@ function verifyAccessToken(token) {
         
         if (decoded.type !== 'access') {
             return null; // Not an access token
+        }
+        
+        // Check token version - if token version doesn't match current version, token is invalid
+        if (decoded.userId && decoded.userType) {
+            // If token doesn't have version, treat as invalid (old tokens from before versioning)
+            if (decoded.tokenVersion === undefined) {
+                return { invalid: true, error: 'Token version missing - please login again' };
+            }
+            
+            const isValidVersion = sessionManager.isTokenVersionValid(
+                decoded.userType,
+                decoded.userId,
+                decoded.tokenVersion
+            );
+            
+            if (!isValidVersion) {
+                return { invalid: true, error: 'Another user has logged in - please login again' };
+            }
         }
         
         return decoded;
@@ -91,6 +124,24 @@ function verifyRefreshToken(token) {
         
         if (decoded.type !== 'refresh') {
             return null; // Not a refresh token
+        }
+        
+        // Check token version - if token version doesn't match current version, token is invalid
+        if (decoded.userId && decoded.userType) {
+            // If token doesn't have version, treat as invalid (old tokens from before versioning)
+            if (decoded.tokenVersion === undefined) {
+                return { invalid: true, error: 'Refresh token version missing - please login again' };
+            }
+            
+            const isValidVersion = sessionManager.isTokenVersionValid(
+                decoded.userType,
+                decoded.userId,
+                decoded.tokenVersion
+            );
+            
+            if (!isValidVersion) {
+                return { invalid: true, error: 'Another user has logged in - please login again' };
+            }
         }
         
         return decoded;

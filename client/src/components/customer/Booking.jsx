@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { formatPrice, formatTime } from '../../utils/formatting';
 import { validatePassengerName } from '../../utils/validation';
 import { initRouteTracker, trackSeatSelection } from '../../utils/routeTracker';
+import { redirectToLogin } from '../../utils/navigation';
 import Navbar from '../common/Navbar';
 import '../../styles/dashboard.css';
 import '../../styles/booking.css';
@@ -33,13 +34,12 @@ function Booking() {
         if (sessionResponse.data.authenticated && sessionResponse.data.user.userType === 'customer') {
           setUserName(`Welcome, ${sessionResponse.data.user.fullName || 'User'}`);
         } else {
-          alert('Please login to continue');
-          navigate('/customer/login');
+          redirectToLogin('customer', { showAlert: true, navigate });
           return;
         }
       } catch (error) {
         console.error('Error checking session:', error);
-        navigate('/customer/login');
+        redirectToLogin('customer', { navigate });
         return;
       }
 

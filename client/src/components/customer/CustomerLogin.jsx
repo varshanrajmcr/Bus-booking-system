@@ -4,7 +4,8 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setUser, setUserName } from '../../store/slices/authSlice';
 import { setErrorMessage, setSuccessMessage, clearMessages } from '../../store/slices/uiSlice';
 import { validateEmailFormat } from '../../utils/validation';
-import { storeTokens } from '../../utils/jwtUtils';
+import { storeTokens, getAccessToken } from '../../utils/jwtUtils';
+import { setActiveCustomerSession, clearExplicitLogout, getActiveCustomerSession } from '../../utils/browserSessionManager';
 import api from '../../services/api';
 import AnimatedBackground from '../common/AnimatedBackground';
 import AnimatedBus from '../common/AnimatedBus';
@@ -19,19 +20,6 @@ function CustomerLogin() {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    // Check if already logged in
-    const checkSession = async () => {
-      try {
-        const response = await api.get('/session?type=customer');
-        if (response.data.authenticated && response.data.user.userType === 'customer') {
-          navigate('/customer/dashboard');
-        }
-      } catch (error) {
-        console.error('Error checking session:', error);
-      }
-    };
-    checkSession();
-
     // Check for message in URL
     const message = searchParams.get('message');
     if (message) {
@@ -40,7 +28,7 @@ function CustomerLogin() {
     return () => {
       dispatch(clearMessages());
     };
-  }, [navigate, searchParams, dispatch]);
+  }, [searchParams, dispatch]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,17 +57,57 @@ function CustomerLogin() {
       return;
     }
 
+    // Check if user is already logged in
+    const activeCustomerId = getActiveCustomerSession();
+    const existingToken = getAccessToken();
+    if (activeCustomerId && existingToken) {
+      // Check if the token is still valid
+      try {
+        const payload = JSON.parse(atob(existingToken.split('.')[1]));
+        const tokenUserId = payload.userId?.toString();
+        if (tokenUserId === activeCustomerId) {
+          // Same user is already logged in - redirect to dashboard
+          dispatch(setSuccessMessage('You are already logged in. Redirecting to dashboard...'));
+          setTimeout(() => {
+            navigate('/customer/dashboard', { replace: true });
+          }, 1500);
+          return;
+        }
+      } catch (e) {
+        // Token invalid, proceed with login
+      }
+    }
+
     try {
       const response = await api.post('/customer/login', formData);
       
       if (response.data.tokens) {
+        console.log('[LOGIN] Received tokens from server for:', response.data.user);
         storeTokens(response.data.tokens.accessToken, response.data.tokens.refreshToken);
+        
+        // Verify token was stored correctly
+        const storedToken = sessionStorage.getItem('jwt_access_token');
+        if (storedToken) {
+          try {
+            const payload = JSON.parse(atob(storedToken.split('.')[1]));
+            console.log('[LOGIN] Verified stored token contains:', {
+              userId: payload.userId,
+              email: payload.email,
+              fullName: payload.fullName
+            });
+          } catch (e) {
+            console.error('[LOGIN] Error verifying stored token:', e);
+          }
+        }
       }
 
       // Update Redux auth state
       if (response.data.user) {
         dispatch(setUser(response.data.user));
         dispatch(setUserName(`Welcome, ${response.data.user.fullName || 'User'}`));
+        // Set browser-wide active customer session
+        setActiveCustomerSession(response.data.user.customerId);
+        clearExplicitLogout();
       }
 
       dispatch(setSuccessMessage(response.data.message || 'Login successful! Redirecting...'));
